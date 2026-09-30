@@ -9,7 +9,11 @@ with a performance timer.
   walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
 - **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
   timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
-- **Keyboard:** `Space` next step · `Esc` fade out · `P` panic stop.
+- **Keyboard & Bluetooth clicker:** `Space`/`Enter`/`→`/`PgDn` next step · `Esc`/`←`/`PgUp` fade out ·
+  `P`/`B`/`.` panic stop. Clickers and page-turners appear as ordinary keyboards: pair one in your OS
+  Bluetooth settings, keep the tab focused, and use Live → *Bluetooth clicker* to reassign buttons
+  (the "Last key" pill shows what the remote sends). Rapid double-presses of "next" are ignored so a
+  double-click can't skip an act.
 - **Multi-computer:** local-first storage, optional cloud sync keyed to your Spotify account,
   plus JSON export/import.
 

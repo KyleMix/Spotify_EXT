@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Show } from '../types';
 import { formatClock, timerStatus } from '../lib';
 import type { WalkUpPlayer } from '../spotify/player';
+import {
+  bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
+  type Action, type Bindings,
+} from './clicker';
+import { RemotePanel } from './RemotePanel';
 
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
@@ -14,6 +19,9 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
   const [log, setLog] = useState<LogEntry[]>([]);
   const [showStart, setShowStart] = useState<number | null>(null);
   const [err, setErr] = useState('');
+  const [bindings, setBindings] = useState<Bindings>(loadBindings);
+  const [listening, setListening] = useState<Action | null>(null);
+  const [lastKey, setLastKey] = useState('');
 
   const slot = show.slots[idx];
   const next = show.slots[idx + 1];
@@ -59,17 +67,45 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
   const primaryRef = useRef(primary);
   primaryRef.current = primary;
 
+  const fade = () => guard(async () => { await player?.stop(1200); });
+  const panic = () => guard(async () => { await player?.panic(); });
+  const handlers = useRef({ next: primary, fade, panic });
+  handlers.current = { next: primary, fade, panic };
+  const bindingsRef = useRef(bindings);
+  bindingsRef.current = bindings;
+  const listeningRef = useRef(listening);
+  listeningRef.current = listening;
+  const lastFired = useRef<Partial<Record<Action, number>>>({});
+
+  useEffect(() => { saveBindings(bindings); }, [bindings]);
+
+  // Keyboard + Bluetooth clickers (which present as keyboards) drive the same actions.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (e.code === 'Space') { e.preventDefault(); void primaryRef.current(); }
-      else if (e.key === 'Escape') void guard(async () => { await player?.stop(1200); });
-      else if (e.key.toLowerCase() === 'p') void guard(async () => { await player?.panic(); });
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      setLastKey(e.code);
+
+      const assigning = listeningRef.current;
+      if (assigning) {
+        e.preventDefault();
+        if (isBindable(e.code)) { setBindings((b) => bindKey(b, assigning, e.code)); setListening(null); }
+        return;
+      }
+
+      const action = resolveAction(bindingsRef.current, e.code);
+      if (!action) return;
+      e.preventDefault(); // also stops Enter/Space from "clicking" whichever button has focus
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      const t = Date.now();
+      if (!canFire(lastFired.current[action], t, action)) return;
+      lastFired.current[action] = t;
+      void handlers.current[action]();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [player, guard]);
+  }, []);
 
   if (show.slots.length === 0) return <div className="card muted">Add someone to the lineup in Edit mode first.</div>;
 
@@ -100,11 +136,11 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
               <button className="primary" onClick={() => void primary()}>
                 {phase === 'cued' ? '▶ Play walk-up' : phase === 'walkup' ? '🎤 On stage — start timer' : '■ End set'}
               </button>
-              <button onClick={() => void guard(async () => { await player?.stop(1200); })}>Fade out</button>
-              <button className="danger" onClick={() => void guard(async () => { await player?.panic(); })}>Panic stop</button>
+              <button onClick={() => void fade()}>Fade out</button>
+              <button className="danger" onClick={() => void panic()}>Panic stop</button>
             </div>
             <div className="muted" style={{ marginTop: 16 }}>
-              <kbd>Space</kbd> next step · <kbd>Esc</kbd> fade out · <kbd>P</kbd> panic stop
+              <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop
               {!ready && ' · Spotify not connected: timer works, music is off'}
             </div>
           </>
@@ -132,6 +168,8 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
           </div>
         </div>
       </div>
+      <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
+        onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
       {err && <div className="toast" role="alert">{err}</div>}
     </div>
   );
