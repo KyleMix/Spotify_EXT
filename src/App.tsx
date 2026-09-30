@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from './store';
 import { duplicateShow, newShow, validateImport } from './lib';
 import { getMe } from './spotify/api';
@@ -8,9 +8,12 @@ import { Editor } from './features/Editor';
 import type { Audition } from './features/SongField';
 import { Live } from './features/Live';
 import type { Track } from './types';
+import { DmxOutput } from './dmx/output';
 
 export function App() {
   const store = useStore();
+  const dmx = useMemo(() => new DmxOutput(), []);
+  useEffect(() => { void dmx.autoConnect(); }, [dmx]);
   const [mode, setMode] = useState<'edit' | 'live'>('edit');
   const [authed, setAuthed] = useState(isLoggedIn());
   const [user, setUser] = useState<{ name: string; premium: boolean } | null>(null);
@@ -101,7 +104,7 @@ export function App() {
       {!show ? <div className="hero"><h1>No shows yet</h1><button className="primary" onClick={() => store.addShow(newShow())}>Create a show</button></div>
         : mode === 'edit'
           ? <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} audition={audition} />
-          : <Live key={show.id} show={show} player={player} ready={pstatus === 'ready'} />}
+          : <Live key={show.id} show={show} player={player} ready={pstatus === 'ready'} dmx={dmx} />}
     </div>
   );
 }

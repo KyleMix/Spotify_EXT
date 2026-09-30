@@ -33,6 +33,19 @@ with a performance timer.
 - **Multi-computer:** local-first storage, optional cloud sync keyed to your Spotify account,
   plus JSON export/import.
 
+## Stage light (DMX)
+Live mode can turn a DMX light **red at each act's light-warning time** (and keep it red through overtime; it is off
+otherwise). It uses a USB-to-DMX cable with an FTDI chip (an "Open DMX" style cable, e.g. DSD TECH SH-RS09B) and
+Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://127.0.0.1:5173` or an HTTPS site.
+1. Plug the cable into the PC and into the light's **DMX IN**. Set the light's DMX address (the `d001` on its display).
+2. In Live mode, open **Stage light (DMX)**, click **Connect light** and pick the cable's serial port
+   (usually named *USB Serial Port (COMx)*). Later visits reconnect automatically.
+3. Set **Start address** to the light's address. Press **Test red / green / blue** and adjust the channel numbers until the
+   colors match. If a test shows nothing, the light's mode may have a **dimmer** channel: enter its number.
+4. If the light flickers on a long cable, add a 120 Ω DMX terminator plug in the light's **DMX OUT**.
+Settings are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
+"Light offline".
+
 ## Setup
 1. Create an app at https://developer.spotify.com/dashboard. Add redirect URI
    `http://127.0.0.1:5173/` (dev) and your deployed URL with a trailing slash. Tick **Web Playback SDK**.
