@@ -12,6 +12,8 @@ with a performance timer.
 - **Walk-off & closing song:** comedians can have a walk-off song that plays when you end their set
   (hosts and breaks never do). Each show can have an end-of-show song that plays on Next after the last act.
   Every song has its own start point and play length.
+- **Suggested cue search:** each song has a 🔍 *Suggested walk-up / walk-off / end-of-show* button that opens a
+  Google search for the best start point in a new tab. Nothing is sent from the app; confirm by ear with Preview.
 - **Fade length:** one slider in Live mode (0.5–10 s, default 4 s) controls every fade-out. Button presses
   take effect instantly; the music fades in the background.
 - **Keyboard & Bluetooth clicker:** `Space`/`Enter`/`→`/`PgDn` next step · `Esc`/`←`/`PgUp` fade out ·

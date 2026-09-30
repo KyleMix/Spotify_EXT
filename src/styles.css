@@ -69,3 +69,5 @@ h2{margin:0 0 12px;font-size:16px}
 .hero h1{font-size:36px;margin:0 0 8px;letter-spacing:-.02em}
 kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
 input[type=range]{accent-color:var(--accent);padding:0}
+.btnlink{display:inline-block;white-space:nowrap;color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:8px 14px;font-size:15px;transition:.15s}
+.btnlink:hover{border-color:var(--muted)}

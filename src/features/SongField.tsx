@@ -1,9 +1,11 @@
 import type { Track } from '../types';
-import { formatClock } from '../lib';
+import { formatClock, suggestionUrl, type SuggestionKind } from '../lib';
 import { TrackSearch } from './TrackSearch';
 
 interface Props {
   label: string;
+  /** Which cue this field is for; used to word the Google search. */
+  kind: SuggestionKind;
   track?: Track;
   startMs: number;
   cueMs: number;
@@ -16,19 +18,21 @@ interface Props {
 
 const num = (v: string) => (Number.isFinite(parseFloat(v)) ? Math.max(0, parseFloat(v)) : 0);
 
-export function SongField({ label, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, preview }: Props) {
+export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, preview }: Props) {
   return (
     <div className="grid">
       <div>
         <label>{label}</label>
         {track && (
-          <div className="row" style={{ marginBottom: 8 }}>
+          <div className="row" style={{ marginBottom: 8, flexWrap: "wrap" }}>
             {track.albumArt && <img className="art" src={track.albumArt} alt="" />}
             <div className="grow" style={{ flex: 1, minWidth: 0 }}>
               <div>{track.name}</div>
               <div className="muted">{track.artist} · {formatClock(track.durationMs)}</div>
             </div>
             <button onClick={() => preview(track, startMs, cueMs || 15000)}>▶ Preview</button>
+            <a className="btnlink" href={suggestionUrl(track, kind)} target="_blank" rel="noopener noreferrer"
+              title="Opens a Google search in a new tab">🔍 Suggested {kind}</a>
             <button className="ghost danger" onClick={() => onChange({ track: undefined })}>Clear</button>
           </div>
         )}

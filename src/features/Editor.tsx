@@ -37,7 +37,7 @@ export function Editor({ show, update, canSearch, preview }: Props) {
       </div>
 
       <div className="card">
-        <SongField label="End-of-show song" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
+        <SongField label="End-of-show song" kind="end-of-show" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
           cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (sec, 0 = until faded out)"
           canSearch={canSearch} preview={preview}
           hint="Plays when you press Next after the last act finishes. Leave empty for no closing song."
@@ -89,7 +89,7 @@ export function Editor({ show, update, canSearch, preview }: Props) {
                   </select></div>
               </div>
 
-              <SongField label="Walk-up song" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
+              <SongField label="Walk-up song" kind="walk-up" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
                 cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} preview={preview}
                 hint={slot.track ? undefined : `Tip: ${DEFAULTS.walkUpCueMs / 1000}s is a good starting length. Start on the hook.`}
                 onChange={(p) => patch(slot.id, {
@@ -99,7 +99,7 @@ export function Editor({ show, update, canSearch, preview }: Props) {
                 })} />
 
               {slot.type === 'act' && (
-                <SongField label="Walk-off song" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
+                <SongField label="Walk-off song" kind="walk-off" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
                   cueMs={slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs} cueLabel="Play walk-off for (sec, 0 = until stopped)"
                   canSearch={canSearch} preview={preview}
                   hint={slot.walkOffTrack ? undefined : `Plays when you end this set. Tip: ~${DEFAULTS.walkOffCueMs / 1000}s, starting on a big moment.`}
