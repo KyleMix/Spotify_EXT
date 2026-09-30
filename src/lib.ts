@@ -80,4 +80,12 @@ export const DEFAULTS = {
   closingCueMs: 0,
 };
 
+export type SuggestionKind = 'walk-up' | 'walk-off' | 'end-of-show';
+
+/** Google search for where in a song to start a cue. Opened in a new tab; nothing is sent from the app. */
+export function suggestionUrl(track: { name: string; artist: string }, kind: SuggestionKind): string {
+  const q = `Best ${kind} time cue for ${track.name} by ${track.artist}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+}
+
 export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);

@@ -41,7 +41,21 @@ describe('totalPlannedMin', () => {
   });
 });
 
-import { hasWalkOff } from './lib';
+import { hasWalkOff, suggestionUrl } from './lib';
+
+describe('suggestionUrl', () => {
+  it('builds an encoded Google search for the song and cue type', () => {
+    const url = new URL(suggestionUrl({ name: 'Tom Sawyer', artist: 'Rush' }, 'walk-up'));
+    expect(url.hostname).toBe('www.google.com');
+    expect(url.searchParams.get('q')).toBe('Best walk-up time cue for Tom Sawyer by Rush');
+  });
+  it('encodes special characters', () => {
+    const url = suggestionUrl({ name: 'Ain\'t That A Shame & More', artist: 'Fats Domino' }, 'walk-off');
+    expect(url).not.toContain('&More');
+    expect(new URL(url).searchParams.get('q')).toContain('& More');
+  });
+});
+
 describe('hasWalkOff', () => {
   const track = { uri: 'spotify:track:x', name: 'n', artist: 'a', durationMs: 1000 };
   it('applies to comedians only, never hosts or breaks', () => {
