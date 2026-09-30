@@ -19,6 +19,10 @@ with a performance timer.
 - **Audition nudges:** under each song's time fields, −5 / −1 / −0.5 / +0.5 / +1 / +5 s buttons move the start
   point and instantly replay from there; **■ Stop** ends the preview; **📍 Use current position** sets the
   start to wherever the song is playing right now (press Preview, wait for the moment you want, click it).
+- **Automatic timer start:** the comedian's timer starts by itself when the walk-up music has stopped: when the
+  play length is reached and the fade finishes, after *Fade out* or *Panic stop*, or when the song ends on its own.
+  Works for comedians, hosts and breaks. Pressing Next during the walk-up still starts it immediately. Slots with no
+  walk-up song stay manual. Turn it off with the checkbox in Live mode.
 - **Fade length:** one slider in Live mode (0.5–10 s, default 4 s) controls every fade-out. Button presses
   take effect instantly; the music fades in the background.
 - **Keyboard & Bluetooth clicker:** `Space`/`Enter`/`→`/`PgDn` next step · `Esc`/`←`/`PgUp` fade out ·
