@@ -9,6 +9,11 @@ with a performance timer.
   walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
 - **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
   timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
+- **Walk-off & closing song:** comedians can have a walk-off song that plays when you end their set
+  (hosts and breaks never do). Each show can have an end-of-show song that plays on Next after the last act.
+  Every song has its own start point and play length.
+- **Fade length:** one slider in Live mode (0.5–10 s, default 4 s) controls every fade-out. Button presses
+  take effect instantly; the music fades in the background.
 - **Keyboard & Bluetooth clicker:** `Space`/`Enter`/`→`/`PgDn` next step · `Esc`/`←`/`PgUp` fade out ·
   `P`/`B`/`.` panic stop. Clickers and page-turners appear as ordinary keyboards: pair one in your OS
   Bluetooth settings, keep the tab focused, and use Live → *Bluetooth clicker* to reassign buttons

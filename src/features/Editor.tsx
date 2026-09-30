@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import type { Show, Slot } from '../types';
-import { formatClock, moveItem, newSlot, totalPlannedMin } from '../lib';
-import { TrackSearch } from './TrackSearch';
+import type { Show, Slot, Track } from '../types';
+import { DEFAULTS, moveItem, newSlot, totalPlannedMin } from '../lib';
+import { SongField } from './SongField';
 
 interface Props {
   show: Show;
   update: (fn: (s: Show) => Show) => void;
   canSearch: boolean;
-  preview: (slot: Slot) => void;
+  preview: (track: Track, startMs: number, cueMs: number) => void;
 }
 
 const num = (v: string, d = 0) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d);
@@ -34,6 +34,19 @@ export function Editor({ show, update, canSearch, preview }: Props) {
         <div><label>Show name</label><input value={show.name} onChange={(e) => update((s) => ({ ...s, name: e.target.value }))} /></div>
         <div><label>Date</label><input type="date" value={show.date} onChange={(e) => update((s) => ({ ...s, date: e.target.value }))} /></div>
         <div><label>Venue</label><input value={show.venue} onChange={(e) => update((s) => ({ ...s, venue: e.target.value }))} /></div>
+      </div>
+
+      <div className="card">
+        <SongField label="End-of-show song" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
+          cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (sec, 0 = until faded out)"
+          canSearch={canSearch} preview={preview}
+          hint="Plays when you press Next after the last act finishes. Leave empty for no closing song."
+          onChange={(p) => update((sh) => ({
+            ...sh,
+            ...('track' in p ? { closingTrack: p.track } : {}),
+            ...(p.startMs !== undefined ? { closingStartMs: p.startMs } : {}),
+            ...(p.cueMs !== undefined ? { closingCueMs: p.cueMs } : {}),
+          }))} />
       </div>
 
       <div className="split">
@@ -76,25 +89,28 @@ export function Editor({ show, update, canSearch, preview }: Props) {
                   </select></div>
               </div>
 
-              <div>
-                <label>Walk-up song</label>
-                {slot.track && (
-                  <div className="row" style={{ marginBottom: 8 }}>
-                    {slot.track.albumArt && <img className="art" src={slot.track.albumArt} alt="" />}
-                    <div className="grow"><div>{slot.track.name}</div><div className="muted">{slot.track.artist} · {formatClock(slot.track.durationMs)}</div></div>
-                    <button onClick={() => preview(slot)}>▶ Preview</button>
-                    <button className="ghost danger" onClick={() => patch(slot.id, { track: undefined })}>Clear</button>
-                  </div>
-                )}
-                {canSearch ? <TrackSearch onPick={(t) => patch(slot.id, { track: t })} />
-                  : <div className="muted">Connect Spotify (top right) to search for songs.</div>}
-              </div>
+              <SongField label="Walk-up song" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
+                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} preview={preview}
+                hint={slot.track ? undefined : `Tip: ${DEFAULTS.walkUpCueMs / 1000}s is a good starting length. Start on the hook.`}
+                onChange={(p) => patch(slot.id, {
+                  ...('track' in p ? { track: p.track } : {}),
+                  ...(p.startMs !== undefined ? { startOffsetMs: p.startMs } : {}),
+                  ...(p.cueMs !== undefined ? { cueLengthMs: p.cueMs } : {}),
+                })} />
+
+              {slot.type === 'act' && (
+                <SongField label="Walk-off song" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
+                  cueMs={slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs} cueLabel="Play walk-off for (sec, 0 = until stopped)"
+                  canSearch={canSearch} preview={preview}
+                  hint={slot.walkOffTrack ? undefined : `Plays when you end this set. Tip: ~${DEFAULTS.walkOffCueMs / 1000}s, starting on a big moment.`}
+                  onChange={(p) => patch(slot.id, {
+                    ...('track' in p ? { walkOffTrack: p.track } : {}),
+                    ...(p.startMs !== undefined ? { walkOffStartMs: p.startMs } : {}),
+                    ...(p.cueMs !== undefined ? { walkOffCueMs: p.cueMs } : {}),
+                  })} />
+              )}
 
               <div className="grid g2">
-                <div><label>Song starts at (sec)</label>
-                  <input type="number" min={0} value={slot.startOffsetMs / 1000} onChange={(e) => patch(slot.id, { startOffsetMs: num(e.target.value) * 1000 })} /></div>
-                <div><label>Play walk-up for (sec, 0 = until stopped)</label>
-                  <input type="number" min={0} value={slot.cueLengthMs / 1000} onChange={(e) => patch(slot.id, { cueLengthMs: num(e.target.value) * 1000 })} /></div>
                 <div><label>Set length (min)</label>
                   <input type="number" min={0} value={slot.setLengthMin} onChange={(e) => patch(slot.id, { setLengthMin: num(e.target.value) })} /></div>
                 <div><label>Light warning at (min left)</label>

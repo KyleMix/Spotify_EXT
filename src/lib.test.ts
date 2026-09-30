@@ -40,3 +40,14 @@ describe('totalPlannedMin', () => {
     expect(totalPlannedMin(s)).toBe(10);
   });
 });
+
+import { hasWalkOff } from './lib';
+describe('hasWalkOff', () => {
+  const track = { uri: 'spotify:track:x', name: 'n', artist: 'a', durationMs: 1000 };
+  it('applies to comedians only, never hosts or breaks', () => {
+    expect(hasWalkOff(newSlot({ type: 'act', walkOffTrack: track }))).toBe(true);
+    expect(hasWalkOff(newSlot({ type: 'host', walkOffTrack: track }))).toBe(false);
+    expect(hasWalkOff(newSlot({ type: 'break', walkOffTrack: track }))).toBe(false);
+    expect(hasWalkOff(newSlot({ type: 'act' }))).toBe(false);
+  });
+});

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Show } from '../types';
-import { formatClock, timerStatus } from '../lib';
+import { DEFAULTS, formatClock, hasWalkOff, timerStatus } from '../lib';
 import type { WalkUpPlayer } from '../spotify/player';
 import {
   bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
   type Action, type Bindings,
 } from './clicker';
 import { RemotePanel } from './RemotePanel';
+import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
 
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
@@ -22,6 +23,8 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
   const [bindings, setBindings] = useState<Bindings>(loadBindings);
   const [listening, setListening] = useState<Action | null>(null);
   const [lastKey, setLastKey] = useState('');
+  const [settings, setSettings] = useState<AudioSettings>(loadSettings);
+  const [closingPlaying, setClosingPlaying] = useState(false);
 
   const slot = show.slots[idx];
   const next = show.slots[idx + 1];
@@ -31,6 +34,16 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
     const t = setInterval(() => setNow(Date.now()), 200);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (player) player.fadeOutMs = settings.fadeOutMs;
+    saveSettings(settings);
+  }, [player, settings]);
+
+  /** Fade in the background so the show's state changes the instant a button is pressed. */
+  const fadeOutNow = () => {
+    if (player && ready) player.stop().catch((e: Error) => setErr(e.message));
+  };
 
   const guard = useCallback(async (fn: () => Promise<void>) => {
     try { setErr(''); await fn(); } catch (e) { setErr((e as Error).message); }
@@ -50,24 +63,46 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
     setPhase('walkup');
   });
   const onStage = () => guard(async () => {
-    if (player && ready) await player.stop(2000);
+    fadeOutNow();
     setStartedAt(Date.now());
     setPhase('timing');
   });
   const endSet = () => guard(async () => {
     if (slot) setLog((l) => [...l, { name: slot.performer || 'Unnamed', elapsedMs: now - startedAt, setLengthMin: slot.setLengthMin }]);
-    if (player && ready) await player.stop(800);
+    if (player && ready) {
+      try {
+        // Walk-off is comedians only; hosts and breaks just fade out.
+        if (slot && hasWalkOff(slot)) {
+          await player.play(slot.walkOffTrack!, slot.walkOffStartMs ?? 0, slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs, 400);
+        } else {
+          fadeOutNow();
+        }
+      } catch (e) { setErr((e as Error).message); } // never block the show on a playback error
+    }
     setIdx((i) => i + 1);
     setPhase('cued');
   });
-  const skip = () => guard(async () => { if (player && ready) await player.stop(500); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
-  const back = () => { setIdx((i) => Math.max(0, i - 1)); setPhase('cued'); };
+  const skip = () => guard(async () => { fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
+  const back = () => {
+    if (closingPlaying) { fadeOutNow(); setClosingPlaying(false); }
+    setIdx((i) => Math.max(0, i - 1));
+    setPhase('cued');
+  };
 
-  const primary = phase === 'cued' ? playWalkup : phase === 'walkup' ? onStage : endSet;
+  const closing = () => guard(async () => {
+    if (closingPlaying) { fadeOutNow(); setClosingPlaying(false); return; }
+    if (show.closingTrack && player && ready) {
+      await player.unlock();
+      await player.play(show.closingTrack, show.closingStartMs ?? 0, show.closingCueMs ?? DEFAULTS.closingCueMs, 1200);
+      setClosingPlaying(true);
+    }
+  });
+
+  const primary = done ? closing : phase === 'cued' ? playWalkup : phase === 'walkup' ? onStage : endSet;
   const primaryRef = useRef(primary);
   primaryRef.current = primary;
 
-  const fade = () => guard(async () => { await player?.stop(1200); });
+  const fade = () => guard(async () => { setClosingPlaying(false); fadeOutNow(); });
   const panic = () => guard(async () => { await player?.panic(); });
   const handlers = useRef({ next: primary, fade, panic });
   handlers.current = { next: primary, fade, panic };
@@ -115,7 +150,22 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
     <div className="live">
       <div className="card stage">
         {done ? (
-          <><div className="phase">Show complete</div><div className="who">That's a wrap 🎤</div><div className="muted">Total running time {runningTotal}</div></>
+          <>
+            <div className="phase">Show complete</div>
+            <div className="who">That's a wrap 🎤</div>
+            <div className="muted">Total running time {runningTotal}</div>
+            {show.closingTrack ? (
+              <>
+                <div className="muted" style={{ marginTop: 16 }}>♪ {show.closingTrack.name} — {show.closingTrack.artist}</div>
+                <div className="controls" style={{ marginTop: 16 }}>
+                  <button className="primary" onClick={() => void closing()}>
+                    {closingPlaying ? '■ Fade out closing song' : '▶ Play closing song'}
+                  </button>
+                  <button className="danger" onClick={() => void panic()}>Panic stop</button>
+                </div>
+              </>
+            ) : <div className="muted" style={{ marginTop: 16 }}>No end-of-show song set.</div>}
+          </>
         ) : (
           <>
             <div className="phase">
@@ -167,6 +217,20 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
             })}
           </div>
         </div>
+      </div>
+      <div className="card">
+        <div className="row">
+          <h2 style={{ margin: 0 }}>Fade length</h2>
+          <div className="spacer" />
+          <strong>{(settings.fadeOutMs / 1000).toFixed(1)} s</strong>
+        </div>
+        <p className="muted" style={{ margin: '8px 0' }}>
+          How long music takes to fade out when you press Fade out, when the comic takes the stage, and when a
+          walk-up or walk-off reaches its time limit. Longer is smoother.
+        </p>
+        <input type="range" min={FADE_MIN_MS} max={FADE_MAX_MS} step={500} value={settings.fadeOutMs}
+          aria-label="Fade length in seconds"
+          onChange={(e) => setSettings({ fadeOutMs: clampFade(Number(e.target.value)) })} />
       </div>
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />

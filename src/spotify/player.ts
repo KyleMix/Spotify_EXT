@@ -25,6 +25,8 @@ export class WalkUpPlayer {
   private deviceId?: string;
   private volume = 1;
   private fadeToken = 0;
+  /** Default length for automatic and manual fade-outs. */
+  fadeOutMs = 4000;
   private cueTimer?: ReturnType<typeof setTimeout>;
   status: PlayerStatus = 'loading';
 
@@ -61,16 +63,18 @@ export class WalkUpPlayer {
   /** Must run from a user gesture the first time (browser autoplay policy). */
   async unlock() { await this.player?.activateElement(); }
 
-  private async fade(to: number, ms: number) {
+  /** Resolves true if the fade finished, false if a newer fade or play superseded it. */
+  private async fade(to: number, ms: number): Promise<boolean> {
     const token = ++this.fadeToken;
     const from = this.volume;
     const steps = Math.max(1, Math.round(ms / 100));
     for (let i = 1; i <= steps; i++) {
-      if (token !== this.fadeToken) return;
+      if (token !== this.fadeToken) return false;
       this.volume = from + ((to - from) * i) / steps;
       await this.player?.setVolume(Math.min(1, Math.max(0, this.volume)));
       await sleep(ms / steps);
     }
+    return token === this.fadeToken;
   }
 
   async play(track: Track, startOffsetMs: number, cueLengthMs: number, fadeInMs = 800) {
@@ -81,12 +85,13 @@ export class WalkUpPlayer {
     await this.player?.setVolume(0);
     await playTrack(this.deviceId, track.uri, startOffsetMs);
     void this.fade(1, fadeInMs);
-    if (cueLengthMs > 0) this.cueTimer = setTimeout(() => void this.stop(2500), cueLengthMs);
+    if (cueLengthMs > 0) this.cueTimer = setTimeout(() => void this.stop(), cueLengthMs);
   }
 
-  async stop(fadeMs = 1500) {
+  async stop(fadeMs = this.fadeOutMs) {
     clearTimeout(this.cueTimer);
-    await this.fade(0, fadeMs);
+    // If a new song started mid-fade, don't pause it.
+    if (!(await this.fade(0, fadeMs))) return;
     await this.player?.pause();
   }
 
