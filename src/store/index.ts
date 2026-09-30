@@ -22,7 +22,9 @@ async function remote(method: 'GET' | 'PUT', body?: AppData): Promise<AppData | 
     method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 404 || res.status === 501) throw new Error('unavailable');
+  // No backend (local dev server, or Upstash not configured): stay local without flagging an error.
+  const isJson = res.headers.get('content-type')?.includes('application/json');
+  if (res.status === 404 || res.status === 501 || (res.ok && !isJson)) throw new Error('unavailable');
   if (!res.ok) throw new Error(`sync ${res.status}`);
   return method === 'GET' ? ((await res.json()) as AppData | null) : null;
 }
