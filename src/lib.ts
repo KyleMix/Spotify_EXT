@@ -82,10 +82,57 @@ export const DEFAULTS = {
 
 export type SuggestionKind = 'walk-up' | 'walk-off' | 'end-of-show';
 
+export type SuggestionStyle = 'seconds' | 'chorus' | 'moment';
+
+export const SUGGESTION_STYLES: { id: SuggestionStyle; label: string }[] = [
+  { id: 'seconds', label: 'Seconds' },
+  { id: 'chorus', label: 'Chorus / hook' },
+  { id: 'moment', label: 'Big moment' },
+];
+
+const CLIP_NOUN: Record<SuggestionKind, string> = {
+  'walk-up': 'comedian walk-on',
+  'walk-off': 'walk-off',
+  'end-of-show': 'end-of-show closing',
+};
+
+/** The text searched on Google. Asks explicitly for a number of seconds, sized to the real clip length. */
+export function suggestionQuery(
+  track: { name: string; artist: string }, kind: SuggestionKind, cueMs = 0, style: SuggestionStyle = 'seconds',
+): string {
+  const song = `"${track.name}" by ${track.artist}`;
+  const clip = `${cueMs > 0 ? `${Math.round(cueMs / 1000)} second ` : ''}${CLIP_NOUN[kind]} clip`;
+  const ending = kind === 'walk-up' ? 'first big hook or riff' : 'biggest energetic moment or final chorus';
+  switch (style) {
+    case 'chorus':
+      return `${song} at what second does the ${kind === 'walk-up' ? 'first chorus or main hook' : 'final chorus or ending'} start? Answer in seconds only, not minutes:seconds`;
+    case 'moment':
+      return `${song} at what second is the biggest energy moment (riff, drop or build) for a ${clip}? Answer in seconds only, not minutes:seconds`;
+    default:
+      return `${song} best start time in seconds for a ${clip} (${ending}). Answer with a number of seconds, for example 41 seconds, not minutes:seconds`;
+  }
+}
+
 /** Google search for where in a song to start a cue. Opened in a new tab; nothing is sent from the app. */
-export function suggestionUrl(track: { name: string; artist: string }, kind: SuggestionKind): string {
-  const q = `Best ${kind} time cue for ${track.name} by ${track.artist}`;
-  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+export function suggestionUrl(
+  track: { name: string; artist: string }, kind: SuggestionKind, cueMs = 0, style: SuggestionStyle = 'seconds',
+): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(suggestionQuery(track, kind, cueMs, style))}`;
+}
+
+/**
+ * Parse a typed time into seconds. Accepts `41`, `41s`, `41 sec`, `41.5`, `0:41`, `1:05`, `1:02:03`.
+ * Returns null for anything else so callers can keep the previous value.
+ */
+export function parseTimeInput(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(/\s*(seconds?|secs?|s)$/, '');
+  if (!t) return null;
+  if (t.includes(':')) {
+    const parts = t.split(':');
+    if (parts.length > 3 || parts.some((p) => !/^\d+(\.\d+)?$/.test(p))) return null;
+    return parts.reduce((acc, p) => acc * 60 + parseFloat(p), 0);
+  }
+  return /^\d+(\.\d+)?$/.test(t) ? parseFloat(t) : null;
 }
 
 export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);

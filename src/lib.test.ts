@@ -41,18 +41,48 @@ describe('totalPlannedMin', () => {
   });
 });
 
-import { hasWalkOff, suggestionUrl } from './lib';
+import { hasWalkOff, parseTimeInput, suggestionQuery, suggestionUrl, SUGGESTION_STYLES } from './lib';
 
-describe('suggestionUrl', () => {
-  it('builds an encoded Google search for the song and cue type', () => {
-    const url = new URL(suggestionUrl({ name: 'Tom Sawyer', artist: 'Rush' }, 'walk-up'));
-    expect(url.hostname).toBe('www.google.com');
-    expect(url.searchParams.get('q')).toBe('Best walk-up time cue for Tom Sawyer by Rush');
+describe('suggestionQuery / suggestionUrl', () => {
+  const rush = { name: 'Tom Sawyer', artist: 'Rush' };
+  it('asks for seconds and includes the clip length', () => {
+    const q = suggestionQuery(rush, 'walk-up', 25_000);
+    expect(q).toContain('"Tom Sawyer" by Rush');
+    expect(q).toContain('25 second comedian walk-on clip');
+    expect(q).toMatch(/in seconds/);
+    expect(q).toMatch(/not minutes:seconds/);
   });
-  it('encodes special characters', () => {
-    const url = suggestionUrl({ name: 'Ain\'t That A Shame & More', artist: 'Fats Domino' }, 'walk-off');
-    expect(url).not.toContain('&More');
-    expect(new URL(url).searchParams.get('q')).toContain('& More');
+  it('words walk-off and end-of-show differently', () => {
+    expect(suggestionQuery(rush, 'walk-off', 12_000)).toContain('12 second walk-off clip');
+    expect(suggestionQuery(rush, 'end-of-show', 0)).toContain('end-of-show closing clip');
+    expect(suggestionQuery(rush, 'end-of-show', 0)).not.toContain('0 second');
+  });
+  it('has distinct wording per style', () => {
+    const qs = new Set(SUGGESTION_STYLES.map((s) => suggestionQuery(rush, 'walk-up', 25_000, s.id)));
+    expect(qs.size).toBe(SUGGESTION_STYLES.length);
+    expect(suggestionQuery(rush, 'walk-up', 25_000, 'chorus')).toContain('first chorus');
+    expect(suggestionQuery(rush, 'walk-off', 12_000, 'chorus')).toContain('final chorus');
+  });
+  it('builds an encoded Google URL', () => {
+    const url = new URL(suggestionUrl({ name: "Ain't That A Shame & More", artist: 'Fats Domino' }, 'walk-off', 12_000));
+    expect(url.hostname).toBe('www.google.com');
+    expect(url.searchParams.get('q')).toContain("Ain't That A Shame & More");
+    expect(url.search).not.toContain('& More');
+  });
+});
+
+describe('parseTimeInput', () => {
+  it('parses seconds and m:ss forms', () => {
+    expect(parseTimeInput('41')).toBe(41);
+    expect(parseTimeInput(' 41s ')).toBe(41);
+    expect(parseTimeInput('41 seconds')).toBe(41);
+    expect(parseTimeInput('0:41')).toBe(41);
+    expect(parseTimeInput('1:05')).toBe(65);
+    expect(parseTimeInput('1:02:03')).toBe(3723);
+    expect(parseTimeInput('41.5')).toBe(41.5);
+  });
+  it('rejects junk and negatives', () => {
+    for (const bad of ['', 'abc', '-5', '1:2:3:4', '0:4x', ':']) expect(parseTimeInput(bad)).toBeNull();
   });
 });
 
