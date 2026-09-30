@@ -16,6 +16,9 @@ with a performance timer.
   Google search in a new tab. The query asks for a start time in **seconds** and includes your actual clip length.
   A wording dropdown (*Seconds*, *Chorus / hook*, *Big moment*) lets you try another phrasing. Nothing is sent from
   the app; confirm by ear with Preview. Time fields accept `41` or `0:41`.
+- **Audition nudges:** under each song's time fields, −5 / −1 / −0.5 / +0.5 / +1 / +5 s buttons move the start
+  point and instantly replay from there; **■ Stop** ends the preview; **📍 Use current position** sets the
+  start to wherever the song is playing right now (press Preview, wait for the moment you want, click it).
 - **Fade length:** one slider in Live mode (0.5–10 s, default 4 s) controls every fade-out. Button presses
   take effect instantly; the music fades in the background.
 - **Keyboard & Bluetooth clicker:** `Space`/`Enter`/`→`/`PgDn` next step · `Esc`/`←`/`PgUp` fade out ·

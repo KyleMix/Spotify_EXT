@@ -135,4 +135,11 @@ export function parseTimeInput(text: string): number | null {
   return /^\d+(\.\d+)?$/.test(t) ? parseFloat(t) : null;
 }
 
+/** Move a song's start point by `deltaSec`, kept inside the song and rounded to 0.1 s. */
+export function nudgeStart(startMs: number, deltaSec: number, durationMs: number): number {
+  const max = Math.max(0, durationMs - 1000);
+  const next = Math.min(max, Math.max(0, startMs + deltaSec * 1000));
+  return Math.round(next / 100) * 100;
+}
+
 export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);

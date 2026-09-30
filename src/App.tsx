@@ -5,6 +5,7 @@ import { getMe } from './spotify/api';
 import { handleRedirect, isConfigured, isLoggedIn, login, logout } from './spotify/auth';
 import { WalkUpPlayer, type PlayerStatus } from './spotify/player';
 import { Editor } from './features/Editor';
+import type { Audition } from './features/SongField';
 import { Live } from './features/Live';
 import type { Track } from './types';
 
@@ -35,10 +36,13 @@ export function App() {
   const { data } = store;
   const show = data.shows.find((s) => s.id === data.activeShowId) ?? data.shows[0];
 
-  const preview = (track: Track, startMs: number, cueMs: number) => {
-    if (!player) return;
-    player.unlock().then(() => player.play(track, startMs, cueMs))
-      .catch((e: Error) => setPmsg(e.message));
+  const audition: Audition = {
+    play: (track: Track, startMs: number, cueMs: number) => {
+      if (!player) return;
+      player.unlock().then(() => player.play(track, startMs, cueMs)).catch((e: Error) => setPmsg(e.message));
+    },
+    stop: () => { player?.stop(400).catch((e: Error) => setPmsg(e.message)); },
+    position: async () => (player ? player.getPositionMs() : null),
   };
 
   const exportJson = () => {
@@ -96,7 +100,7 @@ export function App() {
 
       {!show ? <div className="hero"><h1>No shows yet</h1><button className="primary" onClick={() => store.addShow(newShow())}>Create a show</button></div>
         : mode === 'edit'
-          ? <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} preview={preview} />
+          ? <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} audition={audition} />
           : <Live key={show.id} show={show} player={player} ready={pstatus === 'ready'} />}
     </div>
   );

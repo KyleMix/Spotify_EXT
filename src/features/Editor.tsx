@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import type { Show, Slot, Track } from '../types';
+import type { Show, Slot } from '../types';
 import { DEFAULTS, moveItem, newSlot, totalPlannedMin } from '../lib';
-import { SongField } from './SongField';
+import { SongField, type Audition } from './SongField';
 
 interface Props {
   show: Show;
   update: (fn: (s: Show) => Show) => void;
   canSearch: boolean;
-  preview: (track: Track, startMs: number, cueMs: number) => void;
+  audition: Audition;
 }
 
 const num = (v: string, d = 0) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d);
 
-export function Editor({ show, update, canSearch, preview }: Props) {
+export function Editor({ show, update, canSearch, audition }: Props) {
   const [sel, setSel] = useState<string | undefined>(show.slots[0]?.id);
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
@@ -39,7 +39,7 @@ export function Editor({ show, update, canSearch, preview }: Props) {
       <div className="card">
         <SongField label="End-of-show song" kind="end-of-show" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
           cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (sec, 0 = until faded out)"
-          canSearch={canSearch} preview={preview}
+          canSearch={canSearch} audition={audition}
           hint="Plays when you press Next after the last act finishes. Leave empty for no closing song."
           onChange={(p) => update((sh) => ({
             ...sh,
@@ -90,7 +90,7 @@ export function Editor({ show, update, canSearch, preview }: Props) {
               </div>
 
               <SongField label="Walk-up song" kind="walk-up" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
-                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} preview={preview}
+                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} audition={audition}
                 hint={slot.track ? undefined : `Tip: ${DEFAULTS.walkUpCueMs / 1000}s is a good starting length. Start on the hook.`}
                 onChange={(p) => patch(slot.id, {
                   ...('track' in p ? { track: p.track } : {}),
@@ -101,7 +101,7 @@ export function Editor({ show, update, canSearch, preview }: Props) {
               {slot.type === 'act' && (
                 <SongField label="Walk-off song" kind="walk-off" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
                   cueMs={slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs} cueLabel="Play walk-off for (sec, 0 = until stopped)"
-                  canSearch={canSearch} preview={preview}
+                  canSearch={canSearch} audition={audition}
                   hint={slot.walkOffTrack ? undefined : `Plays when you end this set. Tip: ~${DEFAULTS.walkOffCueMs / 1000}s, starting on a big moment.`}
                   onChange={(p) => patch(slot.id, {
                     ...('track' in p ? { walkOffTrack: p.track } : {}),
