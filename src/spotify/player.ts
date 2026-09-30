@@ -3,6 +3,7 @@ import { playTrack, transferPlayback } from './api';
 import type { Track } from '../types';
 
 /* Minimal typings for the Web Playback SDK. */
+interface SdkState { paused: boolean; position: number; track_window?: { current_track?: { uri?: string } } }
 interface SdkPlayer {
   connect(): Promise<boolean>; disconnect(): void; pause(): Promise<void>; resume(): Promise<void>;
   setVolume(v: number): Promise<void>; activateElement(): Promise<void>;
@@ -29,6 +30,10 @@ export class WalkUpPlayer {
   /** Default length for automatic and manual fade-outs. */
   fadeOutMs = 4000;
   private cueTimer?: ReturnType<typeof setTimeout>;
+  private currentUri?: string;
+  private sawPlaying = false;
+  /** Called when the music has actually gone quiet: a fade finished, a panic cut, or the song ended on its own. */
+  onSilent?: () => void;
   status: PlayerStatus = 'loading';
 
   constructor(private onStatus: Listener) {}
@@ -57,6 +62,16 @@ export class WalkUpPlayer {
     for (const ev of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
       p.addListener(ev, ({ message }: { message: string }) => this.set('error', message));
     }
+    // Detect a song ending by itself (shorter than its play length, or "until stopped").
+    p.addListener('player_state_changed', (state: SdkState | null) => {
+      if (!state || state.track_window?.current_track?.uri !== this.currentUri) return;
+      if (!state.paused) { this.sawPlaying = true; return; }
+      if (this.sawPlaying) {
+        this.sawPlaying = false;
+        clearTimeout(this.cueTimer);
+        this.onSilent?.();
+      }
+    });
     this.player = p;
     await p.connect();
   }
@@ -82,6 +97,8 @@ export class WalkUpPlayer {
     if (!this.deviceId) throw new Error('Player not ready');
     clearTimeout(this.cueTimer);
     this.fadeToken++;
+    this.currentUri = track.uri;
+    this.sawPlaying = false;
     this.volume = 0;
     await this.player?.setVolume(0);
     await playTrack(this.deviceId, track.uri, startOffsetMs);
@@ -93,7 +110,9 @@ export class WalkUpPlayer {
     clearTimeout(this.cueTimer);
     // If a new song started mid-fade, don't pause it.
     if (!(await this.fade(0, fadeMs))) return;
+    this.sawPlaying = false; // our own pause must not look like the song ending
     await this.player?.pause();
+    this.onSilent?.();
   }
 
   /** Current playback position in ms, or null if nothing is playing. Used to mark cue points by ear. */
@@ -106,7 +125,9 @@ export class WalkUpPlayer {
   async panic() {
     clearTimeout(this.cueTimer);
     this.fadeToken++;
+    this.sawPlaying = false;
     await this.player?.pause();
+    this.onSilent?.();
   }
 
   destroy() { clearTimeout(this.cueTimer); this.player?.disconnect(); }

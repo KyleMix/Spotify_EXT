@@ -25,6 +25,10 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
   const [lastKey, setLastKey] = useState('');
   const [settings, setSettings] = useState<AudioSettings>(loadSettings);
   const [closingPlaying, setClosingPlaying] = useState(false);
+  // True only while a walk-up we started is playing; gates the automatic timer start.
+  const armedRef = useRef(false);
+  const phaseRef = useRef<Phase>('cued');
+  const settingsRef = useRef(settings);
 
   const slot = show.slots[idx];
   const next = show.slots[idx + 1];
@@ -45,6 +49,21 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
     if (player && ready) player.stop().catch((e: Error) => setErr(e.message));
   };
 
+  phaseRef.current = phase;
+  settingsRef.current = settings;
+
+  // Timer starts on its own when the walk-up music has gone quiet (fade finished, panic, or song ended).
+  useEffect(() => {
+    if (!player) return;
+    player.onSilent = () => {
+      if (!armedRef.current || phaseRef.current !== 'walkup' || !settingsRef.current.autoStartTimer) return;
+      armedRef.current = false;
+      setStartedAt(Date.now());
+      setPhase('timing');
+    };
+    return () => { player.onSilent = undefined; };
+  }, [player]);
+
   const guard = useCallback(async (fn: () => Promise<void>) => {
     try { setErr(''); await fn(); } catch (e) { setErr((e as Error).message); }
   }, []);
@@ -59,15 +78,18 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
     if (slot.track && player && ready) {
       await player.unlock();
       await player.play(slot.track, slot.startOffsetMs, slot.cueLengthMs);
+      armedRef.current = true;
     }
     setPhase('walkup');
   });
   const onStage = () => guard(async () => {
+    armedRef.current = false;
     fadeOutNow();
     setStartedAt(Date.now());
     setPhase('timing');
   });
   const endSet = () => guard(async () => {
+    armedRef.current = false;
     if (slot) setLog((l) => [...l, { name: slot.performer || 'Unnamed', elapsedMs: now - startedAt, setLengthMin: slot.setLengthMin }]);
     if (player && ready) {
       try {
@@ -82,8 +104,9 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
     setIdx((i) => i + 1);
     setPhase('cued');
   });
-  const skip = () => guard(async () => { fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
+  const skip = () => guard(async () => { armedRef.current = false; fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
   const back = () => {
+    armedRef.current = false;
     if (closingPlaying) { fadeOutNow(); setClosingPlaying(false); }
     setIdx((i) => Math.max(0, i - 1));
     setPhase('cued');
@@ -117,8 +140,11 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
   // Keyboard + Bluetooth clickers (which present as keyboards) drive the same actions.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const el = e.target as HTMLInputElement;
+      // Ignore real typing, but sliders/checkboxes must not swallow clicker keys after being touched.
+      const typing = el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable
+        || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(el.type));
+      if (typing) return;
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       setLastKey(e.code);
 
@@ -184,11 +210,14 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
             </div>
             <div className="controls">
               <button className="primary" onClick={() => void primary()}>
-                {phase === 'cued' ? '▶ Play walk-up' : phase === 'walkup' ? '🎤 On stage — start timer' : '■ End set'}
+                {phase === 'cued' ? '▶ Play walk-up' : phase === 'walkup' ? '🎤 On stage — start timer now' : '■ End set'}
               </button>
               <button onClick={() => void fade()}>Fade out</button>
               <button className="danger" onClick={() => void panic()}>Panic stop</button>
             </div>
+            {phase === 'walkup' && settings.autoStartTimer && slot.track && ready && (
+              <div className="muted" style={{ marginTop: 12 }} role="status">Timer starts automatically when the music stops.</div>
+            )}
             <div className="muted" style={{ marginTop: 16 }}>
               <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop
               {!ready && ' · Spotify not connected: timer works, music is off'}
@@ -230,7 +259,12 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
         </p>
         <input type="range" min={FADE_MIN_MS} max={FADE_MAX_MS} step={500} value={settings.fadeOutMs}
           aria-label="Fade length in seconds"
-          onChange={(e) => setSettings({ fadeOutMs: clampFade(Number(e.target.value)) })} />
+          onChange={(e) => setSettings((s) => ({ ...s, fadeOutMs: clampFade(Number(e.target.value)) }))} />
+        <label className="check" style={{ marginTop: 14 }}>
+          <input type="checkbox" checked={settings.autoStartTimer}
+            onChange={(e) => setSettings((s) => ({ ...s, autoStartTimer: e.target.checked }))} />
+          Start the timer automatically when the walk-up music stops
+        </label>
       </div>
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />

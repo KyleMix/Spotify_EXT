@@ -1,8 +1,12 @@
 import { SUGGESTION_STYLES, type SuggestionStyle } from '../lib';
 /** Per-browser audio settings for live mode. */
-export interface AudioSettings { fadeOutMs: number }
+export interface AudioSettings {
+  fadeOutMs: number;
+  /** Start the comedian's timer automatically once the walk-up music has stopped. */
+  autoStartTimer: boolean;
+}
 
-export const DEFAULT_SETTINGS: AudioSettings = { fadeOutMs: 4000 };
+export const DEFAULT_SETTINGS: AudioSettings = { fadeOutMs: 4000, autoStartTimer: true };
 export const FADE_MIN_MS = 500;
 export const FADE_MAX_MS = 10_000;
 
@@ -14,7 +18,9 @@ export const clampFade = (ms: number) =>
 export function loadSettings(): AudioSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (raw && typeof raw.fadeOutMs === 'number') return { fadeOutMs: clampFade(raw.fadeOutMs) };
+    if (raw && typeof raw.fadeOutMs === 'number') {
+      return { fadeOutMs: clampFade(raw.fadeOutMs), autoStartTimer: raw.autoStartTimer !== false };
+    }
   } catch { /* defaults */ }
   return DEFAULT_SETTINGS;
 }
