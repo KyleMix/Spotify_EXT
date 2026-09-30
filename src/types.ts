@@ -23,6 +23,10 @@ export interface Slot {
   warnAtMin: number;
   notes: string;
   backupTrack?: Track;
+  /** Comedians only: plays when the set ends. Hosts and breaks never have one. */
+  walkOffTrack?: Track;
+  walkOffStartMs?: number;
+  walkOffCueMs?: number;
 }
 
 export interface Show {
@@ -32,6 +36,11 @@ export interface Show {
   venue: string;
   notes: string;
   slots: Slot[];
+  /** Optional closing song played once the last slot is done. */
+  closingTrack?: Track;
+  closingStartMs?: number;
+  /** 0 = play until faded out manually. */
+  closingCueMs?: number;
   updatedAt: number;
 }
 

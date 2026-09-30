@@ -4,7 +4,7 @@ export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().to
 
 export function newSlot(partial: Partial<Slot> = {}): Slot {
   return {
-    id: uid(), type: 'act', performer: '', startOffsetMs: 0, cueLengthMs: 20000,
+    id: uid(), type: 'act', performer: '', startOffsetMs: 0, cueLengthMs: 25000,
     setLengthMin: 10, warnAtMin: 2, notes: '', ...partial,
   };
 }
@@ -72,3 +72,12 @@ export function mergeData(local: AppData, remote: AppData): AppData {
   }
   return { version: 1, shows: [...map.values()], activeShowId: local.activeShowId ?? remote.activeShowId };
 }
+
+/** Suggested starting points (general live-show practice, not a hard rule). */
+export const DEFAULTS = {
+  walkUpCueMs: 25_000,
+  walkOffCueMs: 12_000,
+  closingCueMs: 0,
+};
+
+export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);

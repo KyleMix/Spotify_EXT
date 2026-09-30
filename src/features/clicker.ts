@@ -7,7 +7,7 @@ export type Bindings = Record<Action, string[]>;
 
 export const ACTIONS: { id: Action; label: string; hint: string }[] = [
   { id: 'next', label: 'Next step', hint: 'Play walk-up → start timer → end set' },
-  { id: 'fade', label: 'Fade out music', hint: 'Gentle 1.2 s fade' },
+  { id: 'fade', label: 'Fade out music', hint: 'Uses your Fade length setting' },
   { id: 'panic', label: 'Panic stop', hint: 'Cut the music instantly' },
 ];
 

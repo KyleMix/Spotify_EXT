@@ -6,7 +6,7 @@ import { handleRedirect, isConfigured, isLoggedIn, login, logout } from './spoti
 import { WalkUpPlayer, type PlayerStatus } from './spotify/player';
 import { Editor } from './features/Editor';
 import { Live } from './features/Live';
-import type { Slot } from './types';
+import type { Track } from './types';
 
 export function App() {
   const store = useStore();
@@ -35,9 +35,9 @@ export function App() {
   const { data } = store;
   const show = data.shows.find((s) => s.id === data.activeShowId) ?? data.shows[0];
 
-  const preview = (slot: Slot) => {
-    if (!slot.track || !player) return;
-    player.unlock().then(() => player.play(slot.track!, slot.startOffsetMs, slot.cueLengthMs || 15000))
+  const preview = (track: Track, startMs: number, cueMs: number) => {
+    if (!player) return;
+    player.unlock().then(() => player.play(track, startMs, cueMs))
       .catch((e: Error) => setPmsg(e.message));
   };
 
