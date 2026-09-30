@@ -7,12 +7,15 @@ import {
   type Action, type Bindings,
 } from './clicker';
 import { RemotePanel } from './RemotePanel';
+import type { DmxOutput } from '../dmx/output';
+import { DmxPanel } from '../dmx/DmxPanel';
+import { lightIsRed, OFF, RED } from '../dmx/frame';
 import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
 
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
 
-export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer | null; ready: boolean }) {
+export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: DmxOutput }) {
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>('cued');
   const [startedAt, setStartedAt] = useState(0);
@@ -70,6 +73,11 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
 
   const elapsed = phase === 'timing' ? now - startedAt : 0;
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
+  // Stage light: red from the light-warning time through overtime, off otherwise.
+  const lightRed = lightIsRed(phase, st?.state ?? 'ok');
+  useEffect(() => { dmx.setShowColor(lightRed ? RED : OFF); }, [dmx, lightRed]);
+  useEffect(() => () => dmx.setShowColor(OFF), [dmx]);
+
   const pct = slot && slot.setLengthMin > 0 ? Math.min(100, (elapsed / (slot.setLengthMin * 60_000)) * 100) : 0;
 
   const playWalkup = () => guard(async () => {
@@ -266,6 +274,7 @@ export function Live({ show, player, ready }: { show: Show; player: WalkUpPlayer
           Start the timer automatically when the walk-up music stops
         </label>
       </div>
+      <DmxPanel dmx={dmx} />
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
       {err && <div className="toast" role="alert">{err}</div>}
