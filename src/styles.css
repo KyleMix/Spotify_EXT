@@ -71,3 +71,4 @@ kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padd
 input[type=range]{accent-color:var(--accent);padding:0}
 .btnlink{display:inline-block;white-space:nowrap;color:var(--text);text-decoration:none;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:8px 14px;font-size:15px;transition:.15s}
 .btnlink:hover{border-color:var(--muted)}
+.mini{padding:6px 10px;font-size:13px}

@@ -1,9 +1,18 @@
 import { useState } from 'react';
 import type { Track } from '../types';
-import { formatClock, suggestionUrl, SUGGESTION_STYLES, type SuggestionKind, type SuggestionStyle } from '../lib';
+import { formatClock, nudgeStart, suggestionUrl, SUGGESTION_STYLES, type SuggestionKind, type SuggestionStyle } from '../lib';
 import { TrackSearch } from './TrackSearch';
 import { TimeInput } from './TimeInput';
 import { loadSuggestStyle, saveSuggestStyle } from './settings';
+
+/** Lets the editor hear a song and read where playback is, so cue points can be set by ear. */
+export interface Audition {
+  play: (track: Track, startMs: number, cueMs: number) => void;
+  stop: () => void;
+  position: () => Promise<number | null>;
+}
+
+const NUDGES = [-5, -1, -0.5, 0.5, 1, 5];
 
 interface Props {
   label: string;
@@ -16,11 +25,12 @@ interface Props {
   canSearch: boolean;
   hint?: string;
   onChange: (p: { track?: Track; startMs?: number; cueMs?: number }) => void;
-  preview: (track: Track, startMs: number, cueMs: number) => void;
+  audition: Audition;
 }
 
-export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, preview }: Props) {
+export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, audition }: Props) {
   const [style, setStyle] = useState<SuggestionStyle>(loadSuggestStyle);
+  const [note, setNote] = useState('');
   const pickStyle = (s: SuggestionStyle) => { setStyle(s); saveSuggestStyle(s); };
 
   return (
@@ -37,7 +47,7 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
               </div>
             </div>
             <div className="row" style={{ flexWrap: 'wrap' }}>
-              <button onClick={() => preview(track, startMs, cueMs || 15000)}>▶ Preview</button>
+              <button onClick={() => audition.play(track, startMs, cueMs || 15000)}>▶ Preview</button>
               <a className="btnlink" href={suggestionUrl(track, kind, cueMs, style)} target="_blank" rel="noopener noreferrer"
                 title="Opens a Google search in a new tab">🔍 Suggested {kind}</a>
               <select style={{ width: 'auto' }} value={style} onChange={(e) => pickStyle(e.target.value as SuggestionStyle)}
@@ -60,6 +70,29 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
           <div><label>{cueLabel}</label>
             <TimeInput label={cueLabel} seconds={cueMs / 1000} onCommit={(v) => onChange({ cueMs: v * 1000 })} /></div>
           <div className="muted" style={{ gridColumn: '1 / -1' }}>Type seconds (41) or minutes:seconds (0:41).</div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label>Audition: nudge the start point and hear it</label>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+              {NUDGES.map((d) => (
+                <button key={d} className="mini" aria-label={`Move start ${d > 0 ? 'later' : 'earlier'} by ${Math.abs(d)} seconds`}
+                  onClick={() => {
+                    const next = nudgeStart(startMs, d, track.durationMs);
+                    onChange({ startMs: next });
+                    audition.play(track, next, cueMs || 15000);
+                    setNote('');
+                  }}>{d > 0 ? '+' : '−'}{Math.abs(d)}s</button>
+              ))}
+              <button className="mini" onClick={() => audition.stop()}>■ Stop</button>
+              <button className="mini primary" title="While the song is playing, set the start to where it is right now"
+                onClick={async () => {
+                  const pos = await audition.position();
+                  if (pos === null) { setNote('Nothing is playing. Press Preview or a nudge first.'); return; }
+                  onChange({ startMs: Math.round(pos / 100) * 100 });
+                  setNote(`Start set to ${(Math.round(pos / 100) / 10).toFixed(1)}s`);
+                }}>📍 Use current position</button>
+            </div>
+            {note && <div className="muted" style={{ marginTop: 6 }} role="status">{note}</div>}
+          </div>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import type { Track } from '../types';
 interface SdkPlayer {
   connect(): Promise<boolean>; disconnect(): void; pause(): Promise<void>; resume(): Promise<void>;
   setVolume(v: number): Promise<void>; activateElement(): Promise<void>;
+  getCurrentState(): Promise<{ position: number; paused: boolean } | null>;
   addListener(ev: string, cb: (arg: any) => void): void;
 }
 declare global {
@@ -93,6 +94,12 @@ export class WalkUpPlayer {
     // If a new song started mid-fade, don't pause it.
     if (!(await this.fade(0, fadeMs))) return;
     await this.player?.pause();
+  }
+
+  /** Current playback position in ms, or null if nothing is playing. Used to mark cue points by ear. */
+  async getPositionMs(): Promise<number | null> {
+    const st = await this.player?.getCurrentState();
+    return st && !st.paused ? st.position : null;
   }
 
   /** Immediate cut, for emergencies. */

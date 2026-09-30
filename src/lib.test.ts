@@ -41,7 +41,7 @@ describe('totalPlannedMin', () => {
   });
 });
 
-import { hasWalkOff, parseTimeInput, suggestionQuery, suggestionUrl, SUGGESTION_STYLES } from './lib';
+import { nudgeStart, hasWalkOff, parseTimeInput, suggestionQuery, suggestionUrl, SUGGESTION_STYLES } from './lib';
 
 describe('suggestionQuery / suggestionUrl', () => {
   const rush = { name: 'Tom Sawyer', artist: 'Rush' };
@@ -68,6 +68,19 @@ describe('suggestionQuery / suggestionUrl', () => {
     expect(url.hostname).toBe('www.google.com');
     expect(url.searchParams.get('q')).toContain("Ain't That A Shame & More");
     expect(url.search).not.toContain('& More');
+  });
+});
+
+describe('nudgeStart', () => {
+  it('moves by seconds and rounds to 0.1s', () => {
+    expect(nudgeStart(41_000, 5, 276_000)).toBe(46_000);
+    expect(nudgeStart(41_000, -0.5, 276_000)).toBe(40_500);
+    expect(nudgeStart(41_040, 1, 276_000)).toBe(42_000);
+  });
+  it('stays inside the song', () => {
+    expect(nudgeStart(2_000, -5, 276_000)).toBe(0);
+    expect(nudgeStart(275_000, 5, 276_000)).toBe(275_000);
+    expect(nudgeStart(0, 5, 0)).toBe(0);
   });
 });
 
