@@ -1,3 +1,4 @@
+import { SUGGESTION_STYLES, type SuggestionStyle } from '../lib';
 /** Per-browser audio settings for live mode. */
 export interface AudioSettings { fadeOutMs: number }
 
@@ -20,4 +21,18 @@ export function loadSettings(): AudioSettings {
 
 export function saveSettings(s: AudioSettings) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
+}
+
+const STYLE_KEY = 'walkup.suggestStyle.v1';
+
+export function loadSuggestStyle(): SuggestionStyle {
+  try {
+    const v = localStorage.getItem(STYLE_KEY);
+    if (SUGGESTION_STYLES.some((s) => s.id === v)) return v as SuggestionStyle;
+  } catch { /* default */ }
+  return 'seconds';
+}
+
+export function saveSuggestStyle(s: SuggestionStyle) {
+  try { localStorage.setItem(STYLE_KEY, s); } catch { /* storage unavailable */ }
 }
