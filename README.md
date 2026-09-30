@@ -16,6 +16,11 @@ with a performance timer.
   Google search in a new tab. The query asks for a start time in **seconds** and includes your actual clip length.
   A wording dropdown (*Seconds*, *Chorus / hook*, *Big moment*) lets you try another phrasing. Nothing is sent from
   the app; confirm by ear with Preview. Time fields accept `41` or `0:41`.
+- **Stream Deck / extra controls:** besides Next, Fade out and Panic stop, you can assign buttons to **Skip act,
+  Back one act, Play closing song, Stage light red (test) and Stage light off**. They start unassigned. In a Stream
+  Deck, add a *Hotkey* action set to a spare key (F13–F24), then in Live mode click *Add button* next to the action
+  and press the Stream Deck key. Hotkeys only reach the window in front, so keep the Walk-Up tab active. Existing
+  button assignments are kept when the app updates.
 - **Audition nudges:** under each song's time fields, −5 / −1 / −0.5 / +0.5 / +1 / +5 s buttons move the start
   point and instantly replay from there; **■ Stop** ends the preview; **📍 Use current position** sets the
   start to wherever the song is playing right now (press Preview, wait for the moment you want, click it).

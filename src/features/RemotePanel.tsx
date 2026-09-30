@@ -13,15 +13,16 @@ export function RemotePanel({ bindings, listening, lastKey, onListen, onClear, o
   return (
     <div className="card">
       <div className="row">
-        <h2 style={{ margin: 0 }}>Bluetooth clicker</h2>
+        <h2 style={{ margin: 0 }}>Clicker & Stream Deck buttons</h2>
         <div className="spacer" />
         <span className="pill" title="The last key the browser received, useful for testing your remote">
           Last key: {lastKey ? keyLabel(lastKey) : '—'}
         </span>
       </div>
       <p className="muted" style={{ margin: '8px 0 12px' }}>
-        Pair the clicker in your computer's Bluetooth settings, then click <strong>Add button</strong> and press the
-        button on the remote to assign it. Keep this tab focused.
+        Click <strong>Add button</strong>, then press the button on your Bluetooth clicker or Stream Deck to assign it.
+        For a Stream Deck, add a <em>Hotkey</em> action set to a spare key such as <kbd>F13</kbd>–<kbd>F24</kbd>. Hotkeys
+        only reach the window in front, so keep this tab active. The extra controls start unassigned.
       </p>
       <div className="grid">
         {ACTIONS.map((a) => (

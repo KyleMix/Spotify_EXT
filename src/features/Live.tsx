@@ -135,8 +135,16 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
 
   const fade = () => guard(async () => { setClosingPlaying(false); fadeOutNow(); });
   const panic = () => guard(async () => { await player?.panic(); });
-  const handlers = useRef({ next: primary, fade, panic });
-  handlers.current = { next: primary, fade, panic };
+  const actions: Record<Action, () => unknown> = {
+    next: primary, fade, panic,
+    skip: () => { if (!done) return skip(); },
+    back,
+    closing: () => { if (done) return closing(); }, // only meaningful once the last act has finished
+    lightRed: () => dmx.test(RED),
+    lightOff: () => dmx.test(OFF),
+  };
+  const handlers = useRef(actions);
+  handlers.current = actions;
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
   const listeningRef = useRef(listening);
