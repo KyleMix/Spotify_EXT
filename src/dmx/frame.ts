@@ -9,6 +9,11 @@ export interface DmxConfig {
   blue: number;
   /** Master dimmer channel within the fixture, or 0 if the mode has none. Held at full while lit. */
   dimmer: number;
+  /**
+   * How long the red light stays on when the light-warning time hits, in seconds. After that it goes off
+   * until time is up. 0 means it stays on from the warning straight through overtime.
+   */
+  warnPulseSec: number;
 }
 
 export interface LightColor { r: number; g: number; b: number }
@@ -19,7 +24,7 @@ export const GREEN: LightColor = { r: 0, g: 255, b: 0 };
 export const BLUE: LightColor = { r: 0, g: 0, b: 255 };
 export const WHITE: LightColor = { r: 255, g: 255, b: 255 };
 
-export const DEFAULT_DMX_CONFIG: DmxConfig = { address: 1, red: 1, green: 2, blue: 3, dimmer: 0 };
+export const DEFAULT_DMX_CONFIG: DmxConfig = { address: 1, red: 1, green: 2, blue: 3, dimmer: 0, warnPulseSec: 3 };
 
 const STORAGE_KEY = 'walkup.dmx.v1';
 const MAX_OFFSET = 32;
@@ -40,6 +45,7 @@ export function clampDmxConfig(c: Partial<DmxConfig>): DmxConfig {
     green: int(c.green, 1, MAX_OFFSET, d.green),
     blue: int(c.blue, 1, MAX_OFFSET, d.blue),
     dimmer: int(c.dimmer, 0, MAX_OFFSET, d.dimmer),
+    warnPulseSec: int(c.warnPulseSec, 0, 30, d.warnPulseSec),
   };
   const highest = Math.max(cfg.red, cfg.green, cfg.blue, cfg.dimmer);
   if (cfg.address + highest - 1 > 512) cfg.address = 512 - highest + 1;
@@ -74,9 +80,21 @@ export function buildProbeFrame(cfg: DmxConfig, values: Record<number, number>):
   return frame;
 }
 
-/** The light is red from the light-warning time through overtime, and off otherwise. */
-export function lightIsRed(phase: string, timerState: string): boolean {
-  return phase === 'timing' && (timerState === 'warn' || timerState === 'over');
+/**
+ * Whether the stage light should be red right now.
+ * - Light-warning time reached: red for `pulseSec` seconds, then off (0 = stay red).
+ * - Time is up: red, and it stays red until the act ends (the phase leaves "timing").
+ * - Anything else: off.
+ */
+export function lightIsOn(
+  phase: string, elapsedMs: number, setLengthMin: number, warnAtMin: number, pulseSec: number,
+): boolean {
+  if (phase !== 'timing') return false;
+  const totalMs = setLengthMin * 60_000;
+  if (elapsedMs >= totalMs) return true;                       // time is up: solid red
+  const warnStartMs = Math.max(0, totalMs - warnAtMin * 60_000);
+  if (elapsedMs < warnStartMs) return false;                   // before the warning
+  return pulseSec === 0 || elapsedMs - warnStartMs < pulseSec * 1000;
 }
 
 export function loadDmxConfig(): DmxConfig {

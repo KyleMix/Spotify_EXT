@@ -10,6 +10,7 @@ const FIELDS: { key: keyof DmxConfig; label: string; min: number; max: number }[
   { key: 'green', label: 'Green channel', min: 1, max: 32 },
   { key: 'blue', label: 'Blue channel', min: 1, max: 32 },
   { key: 'dimmer', label: 'Dimmer channel (0 = none)', min: 0, max: 32 },
+  { key: 'warnPulseSec', label: 'Warning flash (sec, 0 = stay on)', min: 0, max: 30 },
 ];
 
 export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
@@ -36,7 +37,10 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
         </span>
       </div>
       <p className="muted" style={{ margin: '8px 0 12px' }}>
-        The light turns red at each act's light-warning time and stays red through overtime. It is off the rest of the time.
+        {dmx.config.warnPulseSec > 0
+          ? `At each act's light-warning time the light flashes red for ${dmx.config.warnPulseSec} seconds, then goes off. When time is up it turns red and stays on until the next act.`
+          : "At each act's light-warning time the light turns red and stays on through overtime until the next act."}
+        {' '}It is off the rest of the time.
       </p>
 
       <div className="row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>

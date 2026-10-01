@@ -9,7 +9,7 @@ import {
 import { RemotePanel } from './RemotePanel';
 import type { DmxOutput } from '../dmx/output';
 import { DmxPanel } from '../dmx/DmxPanel';
-import { lightIsRed, OFF, RED } from '../dmx/frame';
+import { lightIsOn, OFF, RED } from '../dmx/frame';
 import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
 
 type Phase = 'cued' | 'walkup' | 'timing';
@@ -73,8 +73,8 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
 
   const elapsed = phase === 'timing' ? now - startedAt : 0;
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
-  // Stage light: red from the light-warning time through overtime, off otherwise.
-  const lightRed = lightIsRed(phase, st?.state ?? 'ok');
+  // Stage light: a short red flash at the light-warning time, then solid red once time is up until the next act.
+  const lightRed = slot ? lightIsOn(phase, elapsed, slot.setLengthMin, slot.warnAtMin, dmx.config.warnPulseSec) : false;
   useEffect(() => { dmx.setShowColor(lightRed ? RED : OFF); }, [dmx, lightRed]);
   useEffect(() => () => dmx.setShowColor(OFF), [dmx]);
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProbeFrame, buildFrame, clampDmxConfig, DEFAULT_DMX_CONFIG, GREEN, lightIsRed, OFF, RED, slotOf } from './frame';
+import { buildProbeFrame, buildFrame, clampDmxConfig, DEFAULT_DMX_CONFIG, GREEN, lightIsOn, OFF, RED, slotOf } from './frame';
 
 describe('buildFrame', () => {
   it('puts colors at the fixture address with a zero start code', () => {
@@ -14,12 +14,12 @@ describe('buildFrame', () => {
     expect(buildFrame({ ...DEFAULT_DMX_CONFIG, address: 100 }, OFF).length).toBe(103);
   });
   it('honors custom channel positions', () => {
-    const f = buildFrame({ address: 1, red: 4, green: 5, blue: 6, dimmer: 0 }, GREEN);
+    const f = buildFrame({ ...DEFAULT_DMX_CONFIG, address: 1, red: 4, green: 5, blue: 6, dimmer: 0 }, GREEN);
     expect([f[4], f[5], f[6]]).toEqual([0, 255, 0]);
     expect(f[1]).toBe(0);
   });
   it('holds the master dimmer at full only while lit', () => {
-    const cfg = { address: 1, red: 1, green: 2, blue: 3, dimmer: 4 };
+    const cfg = { ...DEFAULT_DMX_CONFIG, address: 1, red: 1, green: 2, blue: 3, dimmer: 4 };
     expect(buildFrame(cfg, RED)[4]).toBe(255);
     expect(buildFrame(cfg, OFF)[4]).toBe(0);
   });
@@ -30,6 +30,12 @@ describe('buildFrame', () => {
 });
 
 describe('clampDmxConfig', () => {
+  it('defaults the warning flash to 3 seconds and keeps it in range', () => {
+    expect(clampDmxConfig({}).warnPulseSec).toBe(3);
+    expect(clampDmxConfig({ warnPulseSec: -4 }).warnPulseSec).toBe(0);
+    expect(clampDmxConfig({ warnPulseSec: 500 }).warnPulseSec).toBe(30);
+    expect(clampDmxConfig({ warnPulseSec: 2 }).warnPulseSec).toBe(2);
+  });
   it('keeps values valid', () => {
     expect(clampDmxConfig({ address: 0 }).address).toBe(1);
     expect(clampDmxConfig({ address: 9999 }).address).toBeLessThanOrEqual(510);
@@ -43,13 +49,38 @@ describe('clampDmxConfig', () => {
   });
 });
 
-describe('lightIsRed', () => {
-  it('is red only on the clock at warning or overtime', () => {
-    expect(lightIsRed('timing', 'warn')).toBe(true);
-    expect(lightIsRed('timing', 'over')).toBe(true);
-    expect(lightIsRed('timing', 'ok')).toBe(false);
-    expect(lightIsRed('walkup', 'warn')).toBe(false);
-    expect(lightIsRed('cued', 'over')).toBe(false);
+describe('lightIsOn (10 min set, warning at 2 min left, 3 s flash)', () => {
+  const min = 60_000;
+  const on = (phase: string, elapsedMs: number, pulse = 3) => lightIsOn(phase, elapsedMs, 10, 2, pulse);
+  it('is off before the warning', () => {
+    expect(on('timing', 0)).toBe(false);
+    expect(on('timing', 8 * min - 1)).toBe(false);
+  });
+  it('flashes red for the pulse length when the warning hits, then goes off', () => {
+    expect(on('timing', 8 * min)).toBe(true);
+    expect(on('timing', 8 * min + 2900)).toBe(true);
+    expect(on('timing', 8 * min + 3000)).toBe(false);
+    expect(on('timing', 9 * min)).toBe(false);
+    expect(on('timing', 10 * min - 1)).toBe(false);
+  });
+  it('turns on when time is up and stays on through overtime', () => {
+    expect(on('timing', 10 * min)).toBe(true);
+    expect(on('timing', 10 * min + 5000)).toBe(true);
+    expect(on('timing', 15 * min)).toBe(true);
+  });
+  it('is off whenever the act is not on the clock (until the next comedian starts)', () => {
+    expect(on('cued', 12 * min)).toBe(false);
+    expect(on('walkup', 12 * min)).toBe(false);
+  });
+  it('pulse of 0 keeps it on from the warning through overtime', () => {
+    expect(on('timing', 8 * min + 1000, 0)).toBe(true);
+    expect(on('timing', 9 * min, 0)).toBe(true);
+    expect(on('timing', 7 * min, 0)).toBe(false);
+  });
+  it('handles a warning longer than the whole set (warning starts at 0)', () => {
+    expect(lightIsOn('timing', 0, 1, 5, 3)).toBe(true);
+    expect(lightIsOn('timing', 3500, 1, 5, 3)).toBe(false);
+    expect(lightIsOn('timing', 60_000, 1, 5, 3)).toBe(true);
   });
 });
 

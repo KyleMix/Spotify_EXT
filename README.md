@@ -39,8 +39,9 @@ with a performance timer.
   plus JSON export/import.
 
 ## Stage light (DMX)
-Live mode can turn a DMX light **red at each act's light-warning time** (and keep it red through overtime; it is off
-otherwise). It uses a USB-to-DMX cable with an FTDI chip (an "Open DMX" style cable, e.g. DSD TECH SH-RS09B) and
+Live mode can drive a DMX light: it **flashes red for a few seconds at each act's light-warning time** (3 seconds by
+default; change it with *Warning flash*, or set 0 to stay on), goes off, then **turns red when time is up and stays on until
+the next comedian**. It is off the rest of the time. It uses a USB-to-DMX cable with an FTDI chip (an "Open DMX" style cable, e.g. DSD TECH SH-RS09B) and
 Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://127.0.0.1:5173` or an HTTPS site.
 1. Plug the cable into the PC and into the light's **DMX IN**. Set the light's DMX address (the `d001` on its display).
 2. In Live mode, open **Stage light (DMX)**, click **Connect light** and pick the cable's serial port
