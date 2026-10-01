@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFrame, clampDmxConfig, DEFAULT_DMX_CONFIG, GREEN, lightIsRed, OFF, RED, slotOf } from './frame';
+import { buildProbeFrame, buildFrame, clampDmxConfig, DEFAULT_DMX_CONFIG, GREEN, lightIsRed, OFF, RED, slotOf } from './frame';
 
 describe('buildFrame', () => {
   it('puts colors at the fixture address with a zero start code', () => {
@@ -50,5 +50,27 @@ describe('lightIsRed', () => {
     expect(lightIsRed('timing', 'ok')).toBe(false);
     expect(lightIsRed('walkup', 'warn')).toBe(false);
     expect(lightIsRed('cued', 'over')).toBe(false);
+  });
+});
+
+describe('buildProbeFrame', () => {
+  it('lights only the chosen channel, counted from the start address', () => {
+    const f = buildProbeFrame({ ...DEFAULT_DMX_CONFIG, address: 1 }, { 5: 255 });
+    expect(f[0]).toBe(0);
+    expect(f[5]).toBe(255);
+    expect(Array.from(f).filter((v) => v !== 0)).toEqual([255]);
+    const g = buildProbeFrame({ ...DEFAULT_DMX_CONFIG, address: 7 }, { 5: 255 });
+    expect(g[11]).toBe(255);
+    expect(g[5]).toBe(0);
+  });
+  it('can light several channels and clamps values', () => {
+    const f = buildProbeFrame(DEFAULT_DMX_CONFIG, { 1: 255, 2: 999, 3: -5 });
+    expect([f[1], f[2], f[3]]).toEqual([255, 255, 0]);
+  });
+  it('ignores channels outside the 512-channel universe and keeps frames at least 24 slots', () => {
+    const f = buildProbeFrame({ ...DEFAULT_DMX_CONFIG, address: 510 }, { 1: 255, 9: 255 });
+    expect(f[510]).toBe(255);
+    expect(f.length).toBe(511);
+    expect(buildProbeFrame(DEFAULT_DMX_CONFIG, {}).length).toBe(25);
   });
 });

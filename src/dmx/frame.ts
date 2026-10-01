@@ -61,6 +61,19 @@ export function buildFrame(cfg: DmxConfig, color: LightColor): Uint8Array {
   return frame;
 }
 
+/**
+ * A frame with only the listed fixture channels set (1 = the start address), everything else 0.
+ * Used by the channel finder to learn what each channel of the light's current mode does.
+ */
+export function buildProbeFrame(cfg: DmxConfig, values: Record<number, number>): Uint8Array {
+  const entries = Object.entries(values)
+    .map(([offset, v]) => ({ slot: slotOf(cfg, Number(offset)), v: int(v, 0, 255, 0) }))
+    .filter((e) => e.slot >= 1 && e.slot <= 512);
+  const frame = new Uint8Array(Math.max(MIN_SLOTS, ...entries.map((e) => e.slot)) + 1);
+  for (const e of entries) frame[e.slot] = e.v;
+  return frame;
+}
+
 /** The light is red from the light-warning time through overtime, and off otherwise. */
 export function lightIsRed(phase: string, timerState: string): boolean {
   return phase === 'timing' && (timerState === 'warn' || timerState === 'over');
