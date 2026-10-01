@@ -47,6 +47,10 @@ Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://
    (usually named *USB Serial Port (COMx)*). Later visits reconnect automatically.
 3. Set **Start address** to the light's address. Press **Test red / green / blue** and adjust the channel numbers until the
    colors match. If a test shows nothing, the light's mode may have a **dimmer** channel: enter its number.
+   **Wrong color or nothing for some colors?** Use the **Channel finder** in the same card: it lights one channel at a time
+   from your start address. When a channel makes red, press *This channel is: Red* (same for green, blue and a dimmer
+   if the mode has one). Press `SETUP` on the light to see its channel mode (like `Ch.04`), and press `MODE` to a
+   built-in static color to check that the light's red and green LEDs work at all.
 4. If the light flickers on a long cable, add a 120 Ω DMX terminator plug in the light's **DMX OUT**.
 Settings are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
 "Light offline".

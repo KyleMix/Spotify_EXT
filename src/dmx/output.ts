@@ -1,4 +1,4 @@
-import { buildFrame, loadDmxConfig, OFF, saveDmxConfig, clampDmxConfig, type DmxConfig, type LightColor } from './frame';
+import { buildFrame, buildProbeFrame, loadDmxConfig, OFF, saveDmxConfig, clampDmxConfig, type DmxConfig, type LightColor } from './frame';
 
 /* Minimal Web Serial typings (not in TypeScript's DOM lib). */
 interface SerialPortLike {
@@ -35,6 +35,8 @@ export class DmxOutput {
   private loopDone: Promise<void> = Promise.resolve();
   private showColor: LightColor = OFF;
   private testColor: LightColor | null = null;
+  private probeValues: Record<number, number> | null = null;
+  private probeTimer?: ReturnType<typeof setTimeout>;
   private testTimer?: ReturnType<typeof setTimeout>;
   private listeners = new Set<() => void>();
 
@@ -53,11 +55,34 @@ export class DmxOutput {
   /** Temporarily override the light so channels can be checked; reverts by itself. */
   test(c: LightColor, ms = 4000) {
     if (c === OFF) { this.cancelTest(); return; } // "off" hands control straight back to the show
+    this.stopProbe();
     clearTimeout(this.testTimer);
     this.testColor = c;
     this.testTimer = setTimeout(() => { this.testColor = null; }, ms);
   }
-  cancelTest() { clearTimeout(this.testTimer); this.testColor = null; }
+  cancelTest() { clearTimeout(this.testTimer); this.testColor = null; this.stopProbe(); }
+
+  get probing() { return this.probeValues !== null; }
+
+  /**
+   * Channel finder: light only the given fixture channels (1 = the start address) at the given levels,
+   * so you can see what each channel of the light's current mode does. Stops by itself after 30 s.
+   */
+  probe(values: Record<number, number>, ms = 30000) {
+    clearTimeout(this.testTimer);
+    this.testColor = null;
+    clearTimeout(this.probeTimer);
+    this.probeValues = values;
+    this.probeTimer = setTimeout(() => this.stopProbe(), ms);
+    this.listeners.forEach((f) => f());
+  }
+
+  stopProbe() {
+    clearTimeout(this.probeTimer);
+    if (this.probeValues === null) return;
+    this.probeValues = null;
+    this.listeners.forEach((f) => f());
+  }
 
   /** Must be called from a click: the browser asks which serial port to use. */
   async connect() {
@@ -103,7 +128,9 @@ export class DmxOutput {
     let failure: string | null = null;
     try {
       while (this.running && this.port === port) {
-        const frame = buildFrame(this.config, this.testColor ?? this.showColor);
+        const frame = this.probeValues
+          ? buildProbeFrame(this.config, this.probeValues)
+          : buildFrame(this.config, this.testColor ?? this.showColor);
         await port.setSignals({ break: true });   // BREAK: line held low (at least 88 microseconds)
         await sleep(2);
         await port.setSignals({ break: false });  // mark-after-break
