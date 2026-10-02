@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults } from './lib';
+import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults, showTrackUris } from './lib';
 
 describe('timerStatus', () => {
   it('is ok, warn, then over', () => {
@@ -153,5 +153,13 @@ describe('show defaults and bulk walk-off', () => {
     expect(out[1].walkOffTrack).toEqual(track);
     expect(out[1].walkOffCueMs).toBe(9000);
     expect(out[2].walkOffTrack).toBeUndefined();
+  });
+});
+
+describe('showTrackUris', () => {
+  it('collects every distinct song in the show', () => {
+    const tk = (u: string) => ({ uri: u, name: u, artist: 'a', durationMs: 1 });
+    const show = newShow({ closingTrack: tk('c'), slots: [newSlot({ track: tk('a'), walkOffTrack: tk('b') }), newSlot({ track: tk('a') })] });
+    expect(showTrackUris(show).sort()).toEqual(['a', 'b', 'c']);
   });
 });

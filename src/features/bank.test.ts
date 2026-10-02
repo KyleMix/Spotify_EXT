@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addRecent, filterTracks, isFresh } from './bank';
-import { parseTrackItems } from '../spotify/api';
+import { findUnplayable, parseTrackItems } from '../spotify/api';
 import type { Track } from '../types';
 
 const t = (uri: string, name: string, artist: string): Track => ({ uri, name, artist, durationMs: 1000 });
@@ -40,5 +40,11 @@ describe('recent + cache freshness', () => {
     expect(isFresh({ snapshotId: 's1', tracks: [], complete: true }, p)).toBe(true);
     expect(isFresh({ snapshotId: 's0', tracks: [], complete: true }, p)).toBe(false);
     expect(isFresh({ snapshotId: 's1', tracks: [], complete: false }, p)).toBe(false);
+  });
+});
+
+describe('findUnplayable', () => {
+  it('flags null entries and is_playable false, keeps the rest', () => {
+    expect(findUnplayable(['a', 'b', 'c', 'd'], [{ is_playable: true }, null, { is_playable: false }, {}])).toEqual(['b', 'c']);
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Show } from '../types';
-import { actCount, DEFAULTS, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
+import { actCount, showTrackUris, DEFAULTS, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
 import type { WalkUpPlayer } from '../spotify/player';
 import {
   bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
@@ -15,7 +15,9 @@ import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type A
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
 
-export function Live({ show, player, ready, dmx, resize }: {
+export function Live({ show, player, ready, dmx, resize, unplayable }: {
+  /** Songs the last "Check songs" run found unavailable. */
+  unplayable: string[];
   show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: DmxOutput;
   /** Grow/shrink the comedian list; slots before `keepFrom` are protected. */
   resize: (count: number, keepFrom: number) => void;
@@ -204,6 +206,7 @@ export function Live({ show, player, ready, dmx, resize }: {
 
   const runningTotal = showStart ? formatClock(now - showStart) : '0:00';
 
+  const badCount = showTrackUris(show).filter((u) => unplayable.includes(u)).length;
   const missingSongs = show.slots.filter((s) => s.type === 'act' && !s.track).length;
 
   return (
@@ -212,6 +215,7 @@ export function Live({ show, player, ready, dmx, resize }: {
         <div className="card muted" role="status">
           Ready check: {ready ? '✅ Spotify ready' : '⚠️ Spotify not ready (timer works, music is off)'} ·{' '}
           {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
+          {badCount > 0 && <> · <span style={{ color: 'var(--danger)' }}>⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
         </div>
       )}
       <div className="card stage">

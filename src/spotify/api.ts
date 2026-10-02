@@ -95,3 +95,20 @@ export async function getPlaylistTracksPage(id: string, offset = 0): Promise<{ t
   }
   return { tracks: parseTrackItems(j.items ?? []), next: j.next ? offset + 50 : null };
 }
+
+/** Reads the response of GET /tracks?ids=… : a missing (null) entry or is_playable === false means the song can't be played. */
+export function findUnplayable(uris: string[], tracks: ({ is_playable?: boolean } | null)[]): string[] {
+  return uris.filter((_, i) => { const t = tracks[i]; return !t || t.is_playable === false; });
+}
+
+/** Returns the URIs (from `uris`) that Spotify says are unavailable for this account's country. Throws if the check itself fails. */
+export async function checkTracks(uris: string[]): Promise<string[]> {
+  const ids = [...new Set(uris)].map((u) => u.split(':').pop()!).filter(Boolean);
+  const bad: string[] = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const j = await call(`/tracks?ids=${chunk.join(',')}&market=from_token`);
+    bad.push(...findUnplayable(chunk.map((id) => `spotify:track:${id}`), j.tracks ?? []));
+  }
+  return bad;
+}

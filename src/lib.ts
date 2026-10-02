@@ -179,3 +179,11 @@ export function applyWalkOffToAll(slots: Slot[], from: Slot): Slot[] {
   return slots.map((s) => (s.type === 'act'
     ? { ...s, walkOffTrack: from.walkOffTrack, walkOffStartMs: from.walkOffStartMs, walkOffCueMs: from.walkOffCueMs } : s));
 }
+
+/** Every distinct song URI used by a show (walk-ups, backups, walk-offs and the end-of-show song). */
+export function showTrackUris(show: Show): string[] {
+  const uris = new Set<string>();
+  for (const s of show.slots) for (const t of [s.track, s.backupTrack, s.walkOffTrack]) if (t) uris.add(t.uri);
+  if (show.closingTrack) uris.add(show.closingTrack.uri);
+  return [...uris];
+}

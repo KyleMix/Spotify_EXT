@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from './store';
-import { duplicateShow, newShow, resizeActs, slotDefaults, validateImport } from './lib';
-import { getMe } from './spotify/api';
+import { duplicateShow, newShow, resizeActs, showTrackUris, slotDefaults, validateImport } from './lib';
+import { checkTracks, getMe } from './spotify/api';
 import { handleRedirect, isConfigured, isLoggedIn, login, logout } from './spotify/auth';
 import { WalkUpPlayer, type PlayerStatus } from './spotify/player';
 import { Editor } from './features/Editor';
@@ -23,6 +23,8 @@ export function App() {
   const [pmsg, setPmsg] = useState('');
   const [player, setPlayer] = useState<WalkUpPlayer | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  /** Songs Spotify reported as unavailable, and the check's progress. Cleared when the check is rerun. */
+  const [songCheck, setSongCheck] = useState<{ bad: string[]; state: 'idle' | 'checking' | 'done' | 'error'; msg?: string }>({ bad: [], state: 'idle' });
   const [theme, setTheme] = useState<Theme>(loadTheme);
   useEffect(() => { applyTheme(theme); }, [theme]);
 
@@ -58,6 +60,16 @@ export function App() {
     stop: () => { player?.stop(400).catch((e: Error) => setPmsg(e.message)); },
     position: async () => (player ? player.getPositionMs() : null),
     available: Boolean(player) && pstatus === 'ready',
+  };
+
+  const runSongCheck = () => {
+    if (!show) return;
+    const uris = showTrackUris(show);
+    if (uris.length === 0) { setSongCheck({ bad: [], state: 'done' }); return; }
+    setSongCheck((c) => ({ ...c, state: 'checking', msg: undefined }));
+    checkTracks(uris)
+      .then((bad) => setSongCheck({ bad, state: 'done' }))
+      .catch((e: Error) => setSongCheck({ bad: [], state: 'error', msg: e.message }));
   };
 
   const exportJson = () => {
@@ -131,9 +143,10 @@ export function App() {
         : mode === 'edit'
           ? <>
             <GettingStarted show={show} configured={isConfigured()} connected={authed} onConnect={() => void login()} />
-            <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} audition={audition} />
+            <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} audition={audition}
+              songCheck={songCheck} onCheckSongs={runSongCheck} />
           </>
-          : <Live key={show.id} show={show} player={player} ready={pstatus === 'ready'} dmx={dmx}
+          : <Live key={show.id} show={show} unplayable={songCheck.bad} player={player} ready={pstatus === 'ready'} dmx={dmx}
             resize={(n, keepFrom) => store.updateShow(show.id, (sh) => ({ ...sh, slots: resizeActs(sh.slots, n, keepFrom, slotDefaults(sh)) }))} />}
     </div>
   );

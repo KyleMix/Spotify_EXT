@@ -10,11 +10,14 @@ interface Props {
   update: (fn: (s: Show) => Show) => void;
   canSearch: boolean;
   audition: Audition;
+  songCheck: { bad: string[]; state: 'idle' | 'checking' | 'done' | 'error'; msg?: string };
+  onCheckSongs: () => void;
 }
 
 const num = (v: string, d = 0) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d);
 
-export function Editor({ show, update, canSearch, audition }: Props) {
+export function Editor({ show, update, canSearch, audition, songCheck, onCheckSongs }: Props) {
+  const isBad = (t?: Track) => Boolean(t && songCheck.bad.includes(t.uri));
   const [sel, setSel] = useState<string | undefined>(show.slots[0]?.id);
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
@@ -74,6 +77,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
       </div>
 
       <div className="card">
+        {isBad(show.closingTrack) && <div role="alert" style={{ color: 'var(--danger)', marginBottom: 8 }}>⚠ Spotify says the end-of-show song is unavailable. Pick another.</div>}
         <SongField label="End-of-show song" kind="end-of-show" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
           cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (seconds, 0 = until you fade it out)"
           canSearch={canSearch} audition={audition}
@@ -102,6 +106,17 @@ export function Editor({ show, update, canSearch, audition }: Props) {
             <button onClick={() => add('host')}>+ Host</button>
             <button onClick={() => add('break')}>+ Break</button>
           </div>
+          {canSearch && (show.slots.some((x) => x.track || x.walkOffTrack) || show.closingTrack) ? (
+            <div className="row" style={{ flexWrap: 'wrap' }}>
+              <button className="mini" disabled={!canSearch || songCheck.state === 'checking'} onClick={onCheckSongs}
+                title="Ask Spotify whether each chosen song can be played in your country">{songCheck.state === 'checking' ? 'Checking songs…' : '✔ Check songs are playable'}</button>
+              <span className="muted" role="status">
+                {songCheck.state === 'done' && (songCheck.bad.length === 0 ? 'All songs are playable.' : `${songCheck.bad.length} song${songCheck.bad.length === 1 ? ' is' : 's are'} unavailable — marked ⚠ below.`)}
+                {songCheck.state === 'error' && <span style={{ color: 'var(--danger)' }}>{songCheck.msg ?? 'Could not check songs.'}</span>}
+                {songCheck.state === 'idle' && 'Find songs that have been removed or are blocked in your region.'}
+              </span>
+            </div>
+          ) : null}
           {show.slots.length === 0 && <div className="card muted">No one on the bill yet. Pick a number of spots above, or add a comedian.</div>}
           {show.slots.map((s, i) => (
             <div key={s.id} draggable
@@ -114,7 +129,9 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               <div className="n">{i + 1}</div>
               <div className="grow">
                 <div className="title">{s.performer || <span className="muted">{slotName(s, i)}</span>}{s.type !== 'act' && <span className="pill" style={{ marginLeft: 8 }}>{s.type}</span>}</div>
-                <div className="muted">{s.track ? `♪ ${s.track.name} — ${s.track.artist}` : 'No walk-up song'} · {s.setLengthMin} min</div>
+                <div className="muted">{s.track ? `♪ ${s.track.name} — ${s.track.artist}` : 'No walk-up song'} · {s.setLengthMin} min
+                  {isBad(s.track) && <span style={{ color: 'var(--danger)' }} title="Spotify says this walk-up song is unavailable. Pick another."> ⚠ walk-up unavailable</span>}
+                  {isBad(s.walkOffTrack) && <span style={{ color: 'var(--danger)' }} title="Spotify says this walk-off song is unavailable. Pick another."> ⚠ walk-off unavailable</span>}</div>
               </div>
               <button className="ghost" aria-label="Move up" disabled={i === 0} onClick={(e) => { e.stopPropagation(); reorder(i, i - 1); }}>↑</button>
               <button className="ghost" aria-label="Move down" disabled={i === show.slots.length - 1} onClick={(e) => { e.stopPropagation(); reorder(i, i + 1); }}>↓</button>
