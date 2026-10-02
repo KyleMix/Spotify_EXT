@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot } from './lib';
+import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults, showTrackUris, runSheetRows, describeCue } from './lib';
 
 describe('timerStatus', () => {
   it('is ok, warn, then over', () => {
@@ -106,5 +106,76 @@ describe('hasWalkOff', () => {
     expect(hasWalkOff(newSlot({ type: 'host', walkOffTrack: track }))).toBe(false);
     expect(hasWalkOff(newSlot({ type: 'break', walkOffTrack: track }))).toBe(false);
     expect(hasWalkOff(newSlot({ type: 'act' }))).toBe(false);
+  });
+});
+
+describe('resizeActs', () => {
+  const acts = (n: number) => Array.from({ length: n }, (_, i) => newSlot({ performer: `P${i}` }));
+  it('adds blank comedian spots at the end', () => {
+    const r = resizeActs(acts(2), 5);
+    expect(r).toHaveLength(5);
+    expect(r.slice(0, 2).map((s) => s.performer)).toEqual(['P0', 'P1']);
+    expect(r.slice(2).every(isBlankSlot)).toBe(true);
+  });
+  it('removes from the end and keeps hosts and breaks', () => {
+    const list = [...acts(3), newSlot({ type: 'break', performer: 'Break' })];
+    const r = resizeActs(list, 1);
+    expect(r.map((s) => s.performer)).toEqual(['P0', 'Break']);
+  });
+  it('never removes slots before keepFrom', () => {
+    expect(resizeActs(acts(4), 0, 2).map((s) => s.performer)).toEqual(['P0', 'P1']);
+  });
+  it('clamps to the maximum', () => {
+    expect(resizeActs([], 999)).toHaveLength(MAX_SPOTS);
+  });
+});
+
+describe('slotName', () => {
+  it('falls back to Spot N', () => {
+    expect(slotName(newSlot(), 2)).toBe('Spot 3');
+    expect(slotName(newSlot({ performer: ' Sam ' }), 0)).toBe('Sam');
+  });
+});
+
+describe('show defaults and bulk walk-off', () => {
+  it('new spots use the show defaults', () => {
+    const r = resizeActs([], 2, 0, { cueLengthMs: 12000, setLengthMin: 5, warnAtMin: 1 });
+    expect(r.every((s) => s.cueLengthMs === 12000 && s.setLengthMin === 5 && s.warnAtMin === 1)).toBe(true);
+  });
+  it('falls back to built-in defaults', () => {
+    expect(slotDefaults(newShow()).setLengthMin).toBe(10);
+  });
+  it('applies a walk-off to comedians only', () => {
+    const track = { uri: 'u', name: 'n', artist: 'a', durationMs: 1000 };
+    const from = newSlot({ walkOffTrack: track, walkOffStartMs: 3000, walkOffCueMs: 9000 });
+    const host = newSlot({ type: 'host' });
+    const out = applyWalkOffToAll([from, newSlot(), host], from);
+    expect(out[1].walkOffTrack).toEqual(track);
+    expect(out[1].walkOffCueMs).toBe(9000);
+    expect(out[2].walkOffTrack).toBeUndefined();
+  });
+});
+
+describe('showTrackUris', () => {
+  it('collects every distinct song in the show', () => {
+    const tk = (u: string) => ({ uri: u, name: u, artist: 'a', durationMs: 1 });
+    const show = newShow({ closingTrack: tk('c'), slots: [newSlot({ track: tk('a'), walkOffTrack: tk('b') }), newSlot({ track: tk('a') })] });
+    expect(showTrackUris(show).sort()).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('runSheetRows', () => {
+  it('accumulates planned start times and describes songs', () => {
+    const track = { uri: 'u', name: 'Hello', artist: 'Adele', durationMs: 200000 };
+    const show = newShow({ slots: [newSlot({ performer: 'Sam', setLengthMin: 5, track, startOffsetMs: 41000, cueLengthMs: 25000 }), newSlot({ setLengthMin: 7 }), newSlot({ type: 'host' })] });
+    const rows = runSheetRows(show);
+    expect(rows.map((r) => r.startMin)).toEqual([0, 5, 12]);
+    expect(rows[0].walkUp).toBe('Hello — Adele (starts 0:41, plays 25s)');
+    expect(rows[1].name).toBe('Spot 2');
+    expect(rows[2].walkOff).toBe('');
+  });
+  it('says so when a song plays until stopped', () => {
+    expect(describeCue({ name: 'A', artist: 'B' }, 0, 0)).toBe('A — B (starts 0:00, plays until stopped)');
+    expect(describeCue(undefined, 0, 0)).toBe('');
   });
 });

@@ -1,4 +1,4 @@
-import type { AppData, Show, Slot } from './types';
+import type { AppData, Show, Slot, SlotDefaults } from './types';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
@@ -143,3 +143,74 @@ export function nudgeStart(startMs: number, deltaSec: number, durationMs: number
 }
 
 export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);
+
+/** Upper limit for the quick "number of spots" list, to keep the dropdown and list manageable. */
+export const MAX_SPOTS = 40;
+
+/** Display name for a slot: its performer, or "Spot N" while the sign-up is still blank. */
+export const slotName = (s: Slot, index: number) => s.performer.trim() || `Spot ${index + 1}`;
+
+/** True for a comedian slot nobody has filled in yet (safe to remove without asking). */
+export const isBlankSlot = (s: Slot) => s.type === 'act' && !s.performer.trim() && !s.track && !s.walkOffTrack && !s.notes.trim();
+
+export const actCount = (slots: Slot[]) => slots.filter((s) => s.type === 'act').length;
+
+/**
+ * Grow or shrink the list to `count` comedian spots. New spots are appended blank; when shrinking, comedian
+ * spots are removed from the end (hosts and breaks stay). Slots before `keepFrom` are never removed, so a live
+ * show can't lose the act on stage or any that already went up.
+ */
+export function resizeActs(slots: Slot[], count: number, keepFrom = 0, defaults?: SlotDefaults): Slot[] {
+  const target = Math.max(0, Math.min(MAX_SPOTS, Math.floor(count)));
+  let list = slots;
+  while (actCount(list) < target) list = [...list, newSlot({ type: 'act', ...defaults })];
+  for (let i = list.length - 1; i >= keepFrom && actCount(list) > target; i--) {
+    if (list[i].type === 'act') list = [...list.slice(0, i), ...list.slice(i + 1)];
+  }
+  return list;
+}
+
+export const DEFAULT_SLOT_DEFAULTS: SlotDefaults = { cueLengthMs: 25_000, setLengthMin: 10, warnAtMin: 2 };
+export const slotDefaults = (show: Show): SlotDefaults => ({ ...DEFAULT_SLOT_DEFAULTS, ...show.defaults });
+
+/** Copy one comedian's walk-off song and timing to every comedian in the lineup. */
+export function applyWalkOffToAll(slots: Slot[], from: Slot): Slot[] {
+  if (!from.walkOffTrack) return slots;
+  return slots.map((s) => (s.type === 'act'
+    ? { ...s, walkOffTrack: from.walkOffTrack, walkOffStartMs: from.walkOffStartMs, walkOffCueMs: from.walkOffCueMs } : s));
+}
+
+/** Every distinct song URI used by a show (walk-ups, backups, walk-offs and the end-of-show song). */
+export function showTrackUris(show: Show): string[] {
+  const uris = new Set<string>();
+  for (const s of show.slots) for (const t of [s.track, s.backupTrack, s.walkOffTrack]) if (t) uris.add(t.uri);
+  if (show.closingTrack) uris.add(show.closingTrack.uri);
+  return [...uris];
+}
+
+export interface RunSheetRow {
+  n: number; name: string; type: Slot['type']; startMin: number; lengthMin: number;
+  walkUp: string; walkOff: string; notes: string;
+}
+
+/** "Title — Artist (starts 0:41, plays 25s)"; empty string when there is no song. */
+export function describeCue(track: { name: string; artist: string } | undefined, startMs: number, cueMs: number): string {
+  if (!track) return '';
+  const plays = cueMs > 0 ? `plays ${Math.round(cueMs / 1000)}s` : 'plays until stopped';
+  return `${track.name} — ${track.artist} (starts ${formatClock(startMs)}, ${plays})`;
+}
+
+/** One row per slot for the printable run sheet, with each slot's planned start time in minutes from the top of the show. */
+export function runSheetRows(show: Show): RunSheetRow[] {
+  let at = 0;
+  return show.slots.map((s, i) => {
+    const row: RunSheetRow = {
+      n: i + 1, name: slotName(s, i), type: s.type, startMin: at, lengthMin: s.setLengthMin,
+      walkUp: describeCue(s.track, s.startOffsetMs, s.cueLengthMs),
+      walkOff: s.type === 'act' ? describeCue(s.walkOffTrack, s.walkOffStartMs ?? 0, s.walkOffCueMs ?? DEFAULTS.walkOffCueMs) : '',
+      notes: s.notes,
+    };
+    at += s.setLengthMin;
+    return row;
+  });
+}

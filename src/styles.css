@@ -3,8 +3,10 @@
   --accent:#1db954;--accent-ink:#04140a;--warn:#f5a524;--danger:#ef4444;--ok:#22c55e;
   --radius:12px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
+/* Theme: data-theme is "dark" (default), "light", or "auto" (follows the device). */
+:root[data-theme="light"]{--bg:#f5f6f8;--panel:#fff;--panel2:#f0f2f5;--line:#d5dae3;--text:#12151b;--muted:#566074;--accent:#15803d;--accent-ink:#fff;--warn:#b45309;--danger:#dc2626;--ok:#15803d;color-scheme:light}
 @media (prefers-color-scheme: light){
-  :root.auto{--bg:#f5f6f8;--panel:#fff;--panel2:#f0f2f5;--line:#dfe3ea;--text:#12151b;--muted:#5b6475;--accent-ink:#fff}
+  :root[data-theme="auto"]{--bg:#f5f6f8;--panel:#fff;--panel2:#f0f2f5;--line:#d5dae3;--text:#12151b;--muted:#566074;--accent:#15803d;--accent-ink:#fff;--warn:#b45309;--danger:#dc2626;--ok:#15803d;color-scheme:light}
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-size:15px;-webkit-font-smoothing:antialiased}
@@ -18,7 +20,7 @@ button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
 button:disabled{opacity:.45;cursor:not-allowed}
 input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
-.app{max-width:1100px;margin:0 auto;padding:0 20px 60px}
+.app{max-width:1480px;margin:0 auto;padding:0 20px 60px}
 header.top{display:flex;align-items:center;gap:12px;padding:16px 0;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:24px}
 .brand{font-weight:700;font-size:18px;letter-spacing:-.01em;margin-right:8px}
 .brand span{color:var(--accent)}
@@ -74,3 +76,40 @@ input[type=range]{accent-color:var(--accent);padding:0}
 .mini{padding:6px 10px;font-size:13px}
 label.check{display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);margin:0}
 label.check input{width:auto}
+.handle{cursor:grab;color:var(--muted);letter-spacing:-2px;user-select:none;flex:none}
+summary{color:var(--muted);font-size:13px;margin-bottom:4px}
+/* Song bank */
+.edit-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.edit-layout:has(.bank.collapsed){grid-template-columns:minmax(0,1fr) 44px}
+@media(max-width:1000px){.edit-layout,.edit-layout:has(.bank.collapsed){grid-template-columns:1fr}}
+.bank{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.bank.collapsed{padding:0;border:0;background:none;overflow:visible}
+.bank.collapsed button{writing-mode:vertical-rl;padding:12px 8px;display:flex;gap:6px;align-items:center}
+.bank .vtext{letter-spacing:.04em}
+.bank-list{display:grid;gap:2px}
+.bank-row{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:grab;border:1px solid transparent}
+.bank-row:hover{background:var(--panel2)}
+.bank-row:active{cursor:grabbing}
+.bank-row .grow{flex:1;min-width:0}
+.bank-btns{display:flex;flex-direction:column;gap:4px}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art.sm{width:32px;height:32px}
+.notice{border:1px solid var(--warn);border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px}
+.dropzone{border:2px dashed var(--accent);border-radius:var(--radius);padding:10px;background:color-mix(in srgb,var(--accent) 8%,transparent);transition:.1s}
+.dropzone.over{background:color-mix(in srgb,var(--accent) 22%,transparent);border-style:solid}
+.dropzone .dz-label{font-weight:600;color:var(--accent);margin-bottom:6px}
+.dz-wrap{padding:2px}
+.live{max-width:1100px;margin:0 auto}
+@media(max-width:1400px){.edit-layout .split{grid-template-columns:1fr}}
+/* Printable run sheet */
+.runsheet{display:none}
+@media print{
+  body{background:#fff;color:#000}
+  .app,.toast{display:none!important}
+  .runsheet{display:block;font-size:12pt;color:#000}
+  .runsheet h1{margin:0 0 4px;font-size:22pt}
+  .runsheet table{width:100%;border-collapse:collapse;margin:12px 0}
+  .runsheet th,.runsheet td{border:1px solid #888;padding:5px 7px;text-align:left;vertical-align:top;font-size:10.5pt}
+  .runsheet tr{break-inside:avoid}
+  .runsheet .small{font-size:9pt;color:#444}
+}

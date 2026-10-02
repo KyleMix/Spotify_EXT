@@ -29,6 +29,13 @@ export interface Slot {
   walkOffCueMs?: number;
 }
 
+/** Show-wide starting values applied to newly added comedian spots. */
+export interface SlotDefaults {
+  cueLengthMs: number;
+  setLengthMin: number;
+  warnAtMin: number;
+}
+
 export interface Show {
   id: string;
   name: string;
@@ -41,6 +48,8 @@ export interface Show {
   closingStartMs?: number;
   /** 0 = play until faded out manually. */
   closingCueMs?: number;
+  /** Starting values for spots added later (optional). */
+  defaults?: SlotDefaults;
   updatedAt: number;
 }
 

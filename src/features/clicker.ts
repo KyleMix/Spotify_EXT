@@ -11,7 +11,7 @@ export const ACTIONS: { id: Action; label: string; hint: string }[] = [
   { id: 'panic', label: 'Panic stop', hint: 'Cut the music instantly' },
   { id: 'skip', label: 'Skip act', hint: 'Jump to the next act without playing anything' },
   { id: 'back', label: 'Back one act', hint: 'Return to the previous act' },
-  { id: 'closing', label: 'Play closing song', hint: 'After the last act; press again to fade it out' },
+  { id: 'closing', label: 'Play end-of-show song', hint: 'After the last act; press again to fade it out' },
   { id: 'lightRed', label: 'Stage light red (test)', hint: 'Turns the light red for 4 seconds' },
   { id: 'lightOff', label: 'Stage light off', hint: 'Cancels a light test' },
 ];
