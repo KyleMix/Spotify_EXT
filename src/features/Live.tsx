@@ -38,6 +38,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
   // A pre-show test run is playing: the real show controls are locked until it stops.
   const [testing, setTesting] = useState(false);
   const [testStop, setTestStop] = useState(0);
+  const [view, setView] = useState<'stage' | 'setup'>('stage');
   const testingRef = useRef(false);
   testingRef.current = testing;
   // True only while a walk-up we started is playing; gates the automatic timer start.
@@ -218,15 +219,25 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
 
   return (
     <div className="live">
+      <div className="seg live-tabs" role="tablist" aria-label="Live screen">
+        <button role="tab" id="live-tab-stage" aria-selected={view === 'stage'} aria-controls="live-view-stage" className={view === 'stage' ? 'on' : ''} onClick={() => setView('stage')}>Stage</button>
+        <button role="tab" id="live-tab-setup" aria-selected={view === 'setup'} aria-controls="live-view-setup" className={view === 'setup' ? 'on' : ''} onClick={() => setView('setup')}>
+          Setup{testing ? ' · test running' : ''}
+        </button>
+      </div>
+      <div className="live-view" id="live-view-stage" role="tabpanel" aria-labelledby="live-tab-stage" hidden={view !== 'stage'}>
+      {testing && (
+        <div className="card warn row" role="status">
+          <span className="flex-1">A test run is playing, so the show controls are paused.</span>
+          <button onClick={() => setTestStop((n) => n + 1)}>Stop test run</button>
+        </div>
+      )}
       {phase === 'cued' && idx === 0 && !showStart && (
         <div className="card muted" role="status">
           Ready check: {ready ? '✅ Spotify ready' : '⚠️ Spotify not ready (timer works, music is off)'} ·{' '}
           {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
           {badCount > 0 && <> · <span className="text-danger">⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
         </div>
-      )}
-      {phase === 'cued' && idx === 0 && !showStart && !done && (
-        <TestRun show={show} player={player} ready={ready} onActive={setTesting} stopSignal={testStop} />
       )}
       <div className="card stage">
         {done ? (
@@ -317,6 +328,11 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
         </div>
         <p className="muted mt-2 mb-0">Open mic running long or short? Change the list on the fly. The act on stage and earlier acts are never removed.</p>
       </div>
+      </div>
+      <div className="live-view" id="live-view-setup" role="tabpanel" aria-labelledby="live-tab-setup" hidden={view !== 'setup'}>
+      {phase === 'cued' && idx === 0 && !showStart && !done && (
+        <TestRun show={show} player={player} ready={ready} onActive={setTesting} stopSignal={testStop} />
+      )}
       <div className="card">
         <div className="row">
           <h2 className="m-0">Fade length</h2>
@@ -339,6 +355,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
       <DmxPanel dmx={dmx} />
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
+      </div>
       {err && <div className="toast" role="alert">{err}</div>}
     </div>
   );

@@ -204,6 +204,9 @@ body.dragging-song .songcard.dropzone{animation:breathe 1.2s ease-in-out infinit
 
 /* ---- Live mode ---- */
 .live{display:grid;gap:var(--s5);max-width:1100px;margin:0 auto}
+.live-view{display:grid;gap:var(--s5)}
+.live-tabs{justify-self:center}
+[hidden]{display:none!important}
 .stage{text-align:center;padding:var(--s7) var(--s4);background:radial-gradient(120% 90% at 50% 0,var(--panel2),var(--panel) 70%)}
 .stage .who{font-size:clamp(28px,5vw,52px);font-weight:var(--fw-bold);letter-spacing:-.02em;margin:6px 0}
 .stage .phase{font-size:var(--fs-sm);font-weight:var(--fw-semibold);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
