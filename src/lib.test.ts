@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot } from './lib';
+import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS } from './lib';
 
 describe('timerStatus', () => {
   it('is ok, warn, then over', () => {
@@ -106,5 +106,33 @@ describe('hasWalkOff', () => {
     expect(hasWalkOff(newSlot({ type: 'host', walkOffTrack: track }))).toBe(false);
     expect(hasWalkOff(newSlot({ type: 'break', walkOffTrack: track }))).toBe(false);
     expect(hasWalkOff(newSlot({ type: 'act' }))).toBe(false);
+  });
+});
+
+describe('resizeActs', () => {
+  const acts = (n: number) => Array.from({ length: n }, (_, i) => newSlot({ performer: `P${i}` }));
+  it('adds blank comedian spots at the end', () => {
+    const r = resizeActs(acts(2), 5);
+    expect(r).toHaveLength(5);
+    expect(r.slice(0, 2).map((s) => s.performer)).toEqual(['P0', 'P1']);
+    expect(r.slice(2).every(isBlankSlot)).toBe(true);
+  });
+  it('removes from the end and keeps hosts and breaks', () => {
+    const list = [...acts(3), newSlot({ type: 'break', performer: 'Break' })];
+    const r = resizeActs(list, 1);
+    expect(r.map((s) => s.performer)).toEqual(['P0', 'Break']);
+  });
+  it('never removes slots before keepFrom', () => {
+    expect(resizeActs(acts(4), 0, 2).map((s) => s.performer)).toEqual(['P0', 'P1']);
+  });
+  it('clamps to the maximum', () => {
+    expect(resizeActs([], 999)).toHaveLength(MAX_SPOTS);
+  });
+});
+
+describe('slotName', () => {
+  it('falls back to Spot N', () => {
+    expect(slotName(newSlot(), 2)).toBe('Spot 3');
+    expect(slotName(newSlot({ performer: ' Sam ' }), 0)).toBe('Sam');
   });
 });

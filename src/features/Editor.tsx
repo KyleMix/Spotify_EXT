@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Show, Slot } from '../types';
-import { DEFAULTS, moveItem, newSlot, totalPlannedMin } from '../lib';
+import { actCount, DEFAULTS, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
 import { SongField, type Audition } from './SongField';
 
 interface Props {
@@ -28,6 +28,18 @@ export function Editor({ show, update, canSearch, audition }: Props) {
   const reorder = (from: number, to: number) => update((s) => ({ ...s, slots: moveItem(s.slots, from, to) }));
   const remove = (id: string) => { update((s) => ({ ...s, slots: s.slots.filter((x) => x.id !== id) })); setSel(undefined); };
 
+  /** Grow/shrink the comedian list; confirm first if that would drop spots someone has filled in. */
+  const setSpots = (count: number) => {
+    const next = resizeActs(show.slots, count);
+    const dropped = show.slots.filter((s) => !next.includes(s));
+    if (dropped.some((s) => !isBlankSlot(s))
+      && !confirm(`Remove ${dropped.length} spot${dropped.length === 1 ? '' : 's'} from the end of the list? Some already have a name or song.`)) return;
+    update((sh) => ({ ...sh, slots: next }));
+    if (sel && !next.some((s) => s.id === sel)) setSel(undefined);
+  };
+  const spots = actCount(show.slots);
+  const spotOptions = Array.from({ length: MAX_SPOTS + 1 }, (_, i) => i);
+
   return (
     <div className="grid" style={{ gap: 20 }}>
       <div className="card grid g3">
@@ -54,11 +66,18 @@ export function Editor({ show, update, canSearch, audition }: Props) {
           <div className="row">
             <h2 style={{ margin: 0 }}>Lineup</h2><span className="muted">{show.slots.length} slots · {totalPlannedMin(show)} min planned</span>
             <div className="spacer" />
-            <button className="primary" onClick={() => add('act')}>+ Comedian</button>
+            <label className="check" title="Pick how many comedian spots the list should have. Blank spots are added or removed from the end.">
+              Spots
+              <select style={{ width: 'auto' }} value={spots} aria-label="Number of comedian spots" onChange={(e) => setSpots(Number(e.target.value))}>
+                {spotOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            <button aria-label="Remove last spot" title="Remove the last comedian spot" disabled={spots === 0} onClick={() => setSpots(spots - 1)}>− Spot</button>
+            <button className="primary" title="Add a blank comedian spot at the end" disabled={spots >= MAX_SPOTS} onClick={() => setSpots(spots + 1)}>+ Spot</button>
             <button onClick={() => add('host')}>+ Host</button>
             <button onClick={() => add('break')}>+ Break</button>
           </div>
-          {show.slots.length === 0 && <div className="card muted">No one on the bill yet. Add your first comedian.</div>}
+          {show.slots.length === 0 && <div className="card muted">No one on the bill yet. Pick a number of spots above, or add a comedian.</div>}
           {show.slots.map((s, i) => (
             <div key={s.id} draggable
               className={`slot ${sel === s.id ? 'sel' : ''} ${over === i && drag !== i ? 'dragover' : ''}`}
@@ -68,7 +87,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               onDragEnd={() => { if (drag !== null && over !== null) reorder(drag, over); setDrag(null); setOver(null); }}>
               <div className="n">{i + 1}</div>
               <div className="grow">
-                <div className="title">{s.performer || <span className="muted">Unnamed</span>}{s.type !== 'act' && <span className="pill" style={{ marginLeft: 8 }}>{s.type}</span>}</div>
+                <div className="title">{s.performer || <span className="muted">{slotName(s, i)}</span>}{s.type !== 'act' && <span className="pill" style={{ marginLeft: 8 }}>{s.type}</span>}</div>
                 <div className="muted">{s.track ? `♪ ${s.track.name} — ${s.track.artist}` : 'No walk-up song'} · {s.setLengthMin} min</div>
               </div>
               <button className="ghost" aria-label="Move up" disabled={i === 0} onClick={(e) => { e.stopPropagation(); reorder(i, i - 1); }}>↑</button>

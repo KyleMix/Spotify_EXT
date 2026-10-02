@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Show } from '../types';
-import { DEFAULTS, formatClock, hasWalkOff, timerStatus } from '../lib';
+import { actCount, DEFAULTS, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
 import type { WalkUpPlayer } from '../spotify/player';
 import {
   bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
@@ -15,7 +15,11 @@ import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type A
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
 
-export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: DmxOutput }) {
+export function Live({ show, player, ready, dmx, resize }: {
+  show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: DmxOutput;
+  /** Grow/shrink the comedian list; slots before `keepFrom` are protected. */
+  resize: (count: number, keepFrom: number) => void;
+}) {
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>('cued');
   const [startedAt, setStartedAt] = useState(0);
@@ -78,6 +82,11 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
   useEffect(() => { dmx.setShowColor(lightRed ? RED : OFF); }, [dmx, lightRed]);
   useEffect(() => () => dmx.setShowColor(OFF), [dmx]);
 
+  // The current act (and earlier ones) stay put; only later spots can be removed, and only when blank or unplayed.
+  const protectedUpTo = Math.min(show.slots.length, idx + 1);
+  const lastActIdx = show.slots.map((s) => s.type).lastIndexOf('act');
+  const canRemove = lastActIdx >= protectedUpTo;
+
   const pct = slot && slot.setLengthMin > 0 ? Math.min(100, (elapsed / (slot.setLengthMin * 60_000)) * 100) : 0;
 
   const playWalkup = () => guard(async () => {
@@ -98,7 +107,7 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
   });
   const endSet = () => guard(async () => {
     armedRef.current = false;
-    if (slot) setLog((l) => [...l, { name: slot.performer || 'Unnamed', elapsedMs: now - startedAt, setLengthMin: slot.setLengthMin }]);
+    if (slot) setLog((l) => [...l, { name: slotName(slot, idx), elapsedMs: now - startedAt, setLengthMin: slot.setLengthMin }]);
     if (player && ready) {
       try {
         // Walk-off is comedians only; hosts and breaks just fade out.
@@ -213,7 +222,7 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
             <div className="phase">
               {phase === 'cued' ? 'Up next' : phase === 'walkup' ? 'Walk-up playing' : 'On stage'} · {idx + 1} of {show.slots.length}
             </div>
-            <div className="who">{slot.performer || 'Unnamed'}</div>
+            <div className="who">{slotName(slot, idx)}</div>
             <div className="muted">{slot.track ? `♪ ${slot.track.name} — ${slot.track.artist}` : 'No walk-up song'}{slot.notes && ` · ${slot.notes}`}</div>
             <div className={`clock ${phase === 'timing' && st ? st.state : 'idle'}`}>
               {phase === 'timing' ? formatClock(elapsed) : '0:00'}
@@ -244,7 +253,7 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
 
       <div className="grid g2">
         <div className="card next">
-          <div><div className="muted">NEXT</div><div style={{ fontWeight: 600, fontSize: 18 }}>{next ? next.performer || 'Unnamed' : '—'}</div>
+          <div><div className="muted">NEXT</div><div style={{ fontWeight: 600, fontSize: 18 }}>{next ? slotName(next, idx + 1) : '—'}</div>
             <div className="muted">{next?.track ? `♪ ${next.track.name}` : ''}</div></div>
           <div className="row"><button onClick={back} disabled={idx === 0}>← Back</button><button onClick={() => void skip()} disabled={done}>Skip →</button></div>
         </div>
@@ -262,6 +271,22 @@ export function Live({ show, player, ready, dmx }: { show: Show; player: WalkUpP
             })}
           </div>
         </div>
+      </div>
+      <div className="card">
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0 }}>Lineup length</h2>
+          <span className="muted">{actCount(show.slots)} comedian spots · {Math.max(0, show.slots.length - idx - (done ? 0 : 1))} still to come</span>
+          <div className="spacer" />
+          <button disabled={!canRemove} title={canRemove ? 'Remove the last spot that has not gone up yet' : 'Only spots after the current act can be removed'}
+            onClick={() => {
+              const last = show.slots[lastActIdx];
+              if (last && !isBlankSlot(last) && !confirm(`Remove ${slotName(last, lastActIdx)} from the lineup?`)) return;
+              resize(actCount(show.slots) - 1, protectedUpTo);
+            }}>− Spot</button>
+          <button className="primary" disabled={actCount(show.slots) >= MAX_SPOTS} title="Add a blank spot at the end of the list"
+            onClick={() => resize(actCount(show.slots) + 1, protectedUpTo)}>+ Spot</button>
+        </div>
+        <p className="muted" style={{ margin: '8px 0 0' }}>Open mic running long or short? Change the list on the fly. The act on stage and earlier acts are never removed.</p>
       </div>
       <div className="card">
         <div className="row">

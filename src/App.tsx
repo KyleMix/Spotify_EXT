@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from './store';
-import { duplicateShow, newShow, validateImport } from './lib';
+import { duplicateShow, newShow, resizeActs, validateImport } from './lib';
 import { getMe } from './spotify/api';
 import { handleRedirect, isConfigured, isLoggedIn, login, logout } from './spotify/auth';
 import { WalkUpPlayer, type PlayerStatus } from './spotify/player';
@@ -104,7 +104,8 @@ export function App() {
       {!show ? <div className="hero"><h1>No shows yet</h1><button className="primary" onClick={() => store.addShow(newShow())}>Create a show</button></div>
         : mode === 'edit'
           ? <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} audition={audition} />
-          : <Live key={show.id} show={show} player={player} ready={pstatus === 'ready'} dmx={dmx} />}
+          : <Live key={show.id} show={show} player={player} ready={pstatus === 'ready'} dmx={dmx}
+            resize={(n, keepFrom) => store.updateShow(show.id, (sh) => ({ ...sh, slots: resizeActs(sh.slots, n, keepFrom) }))} />}
     </div>
   );
 }

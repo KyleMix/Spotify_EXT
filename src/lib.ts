@@ -143,3 +143,29 @@ export function nudgeStart(startMs: number, deltaSec: number, durationMs: number
 }
 
 export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);
+
+/** Upper limit for the quick "number of spots" list, to keep the dropdown and list manageable. */
+export const MAX_SPOTS = 40;
+
+/** Display name for a slot: its performer, or "Spot N" while the sign-up is still blank. */
+export const slotName = (s: Slot, index: number) => s.performer.trim() || `Spot ${index + 1}`;
+
+/** True for a comedian slot nobody has filled in yet (safe to remove without asking). */
+export const isBlankSlot = (s: Slot) => s.type === 'act' && !s.performer.trim() && !s.track && !s.walkOffTrack && !s.notes.trim();
+
+export const actCount = (slots: Slot[]) => slots.filter((s) => s.type === 'act').length;
+
+/**
+ * Grow or shrink the list to `count` comedian spots. New spots are appended blank; when shrinking, comedian
+ * spots are removed from the end (hosts and breaks stay). Slots before `keepFrom` are never removed, so a live
+ * show can't lose the act on stage or any that already went up.
+ */
+export function resizeActs(slots: Slot[], count: number, keepFrom = 0): Slot[] {
+  const target = Math.max(0, Math.min(MAX_SPOTS, Math.floor(count)));
+  let list = slots;
+  while (actCount(list) < target) list = [...list, newSlot({ type: 'act' })];
+  for (let i = list.length - 1; i >= keepFrom && actCount(list) > target; i--) {
+    if (list[i].type === 'act') list = [...list.slice(0, i), ...list.slice(i + 1)];
+  }
+  return list;
+}
