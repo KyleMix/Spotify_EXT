@@ -10,6 +10,8 @@ export interface Audition {
   play: (track: Track, startMs: number, cueMs: number) => void;
   stop: () => void;
   position: () => Promise<number | null>;
+  /** False until Spotify is connected and the player is ready. */
+  available: boolean;
 }
 
 const NUDGES = [-5, -1, -0.5, 0.5, 1, 5];
@@ -47,7 +49,8 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
               </div>
             </div>
             <div className="row" style={{ flexWrap: 'wrap' }}>
-              <button onClick={() => audition.play(track, startMs, cueMs || 15000)}>▶ Preview</button>
+              <button disabled={!audition.available} title={audition.available ? 'Play from the start point' : 'Connect Spotify and wait for "Spotify ready" to preview'}
+                onClick={() => audition.play(track, startMs, cueMs || 15000)}>▶ Preview</button>
               <a className="btnlink" href={suggestionUrl(track, kind, cueMs, style)} target="_blank" rel="noopener noreferrer"
                 title="Opens a Google search in a new tab">🔍 Suggested {kind}</a>
               <select style={{ width: 'auto' }} value={style} onChange={(e) => pickStyle(e.target.value as SuggestionStyle)}
@@ -55,26 +58,27 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
                 {SUGGESTION_STYLES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
               <div className="spacer" />
-              <button className="ghost danger" onClick={() => onChange({ track: undefined })}>Clear</button>
+              <button className="ghost danger" title="Remove this song" onClick={() => onChange({ track: undefined })}>Remove song</button>
             </div>
           </div>
         )}
         {canSearch ? <TrackSearch onPick={(t) => onChange({ track: t })} />
-          : <div className="muted">Connect Spotify (top right) to search for songs.</div>}
+          : <div className="muted">Connect Spotify (top right) to search for songs and hear previews.</div>}
         {hint && <div className="muted" style={{ marginTop: 6 }}>{hint}</div>}
       </div>
       {track && (
         <div className="grid g2">
-          <div><label>Song starts at (sec)</label>
+          <div><label>Start point (seconds into the song)</label>
             <TimeInput label="Song starts at" seconds={startMs / 1000} onCommit={(v) => onChange({ startMs: v * 1000 })} /></div>
           <div><label>{cueLabel}</label>
             <TimeInput label={cueLabel} seconds={cueMs / 1000} onCommit={(v) => onChange({ cueMs: v * 1000 })} /></div>
-          <div className="muted" style={{ gridColumn: '1 / -1' }}>Type seconds (41) or minutes:seconds (0:41).</div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>Audition: nudge the start point and hear it</label>
+          <div className="muted" style={{ gridColumn: '1 / -1' }}>Type seconds (41) or minutes:seconds (0:41). Press Enter or click away to save.</div>
+          <details style={{ gridColumn: '1 / -1' }}>
+            <summary style={{ cursor: 'pointer' }}>Fine-tune the start point by ear</summary>
+            <label style={{ marginTop: 8 }}>Nudge the start point and hear it</label>
             <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
               {NUDGES.map((d) => (
-                <button key={d} className="mini" aria-label={`Move start ${d > 0 ? 'later' : 'earlier'} by ${Math.abs(d)} seconds`}
+                <button key={d} className="mini" disabled={!audition.available} aria-label={`Move start ${d > 0 ? 'later' : 'earlier'} by ${Math.abs(d)} seconds`}
                   onClick={() => {
                     const next = nudgeStart(startMs, d, track.durationMs);
                     onChange({ startMs: next });
@@ -82,8 +86,8 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
                     setNote('');
                   }}>{d > 0 ? '+' : '−'}{Math.abs(d)}s</button>
               ))}
-              <button className="mini" onClick={() => audition.stop()}>■ Stop</button>
-              <button className="mini primary" title="While the song is playing, set the start to where it is right now"
+              <button className="mini" disabled={!audition.available} onClick={() => audition.stop()}>■ Stop</button>
+              <button className="mini primary" disabled={!audition.available} title="While the song is playing, set the start to where it is right now"
                 onClick={async () => {
                   const pos = await audition.position();
                   if (pos === null) { setNote('Nothing is playing. Press Preview or a nudge first.'); return; }
@@ -92,7 +96,7 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
                 }}>📍 Use current position</button>
             </div>
             {note && <div className="muted" style={{ marginTop: 6 }} role="status">{note}</div>}
-          </div>
+          </details>
         </div>
       )}
     </div>

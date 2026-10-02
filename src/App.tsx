@@ -54,6 +54,7 @@ export function App() {
     },
     stop: () => { player?.stop(400).catch((e: Error) => setPmsg(e.message)); },
     position: async () => (player ? player.getPositionMs() : null),
+    available: Boolean(player) && pstatus === 'ready',
   };
 
   const exportJson = () => {

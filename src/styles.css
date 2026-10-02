@@ -74,3 +74,5 @@ input[type=range]{accent-color:var(--accent);padding:0}
 .mini{padding:6px 10px;font-size:13px}
 label.check{display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);margin:0}
 label.check input{width:auto}
+.handle{cursor:grab;color:var(--muted);letter-spacing:-2px;user-select:none;flex:none}
+summary{color:var(--muted);font-size:13px;margin-bottom:4px}

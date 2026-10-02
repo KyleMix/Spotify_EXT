@@ -87,6 +87,13 @@ export function Live({ show, player, ready, dmx, resize }: {
   const lastActIdx = show.slots.map((s) => s.type).lastIndexOf('act');
   const canRemove = lastActIdx >= protectedUpTo;
 
+  // Auto-dismiss errors so a stale message doesn't cover the controls.
+  useEffect(() => {
+    if (!err) return;
+    const t = setTimeout(() => setErr(''), 8000);
+    return () => clearTimeout(t);
+  }, [err]);
+
   const pct = slot && slot.setLengthMin > 0 ? Math.min(100, (elapsed / (slot.setLengthMin * 60_000)) * 100) : 0;
 
   const playWalkup = () => guard(async () => {
@@ -197,8 +204,16 @@ export function Live({ show, player, ready, dmx, resize }: {
 
   const runningTotal = showStart ? formatClock(now - showStart) : '0:00';
 
+  const missingSongs = show.slots.filter((s) => s.type === 'act' && !s.track).length;
+
   return (
     <div className="live">
+      {phase === 'cued' && idx === 0 && !showStart && (
+        <div className="card muted" role="status">
+          Ready check: {ready ? '✅ Spotify ready' : '⚠️ Spotify not ready (timer works, music is off)'} ·{' '}
+          {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
+        </div>
+      )}
       <div className="card stage">
         {done ? (
           <>
@@ -210,7 +225,7 @@ export function Live({ show, player, ready, dmx, resize }: {
                 <div className="muted" style={{ marginTop: 16 }}>♪ {show.closingTrack.name} — {show.closingTrack.artist}</div>
                 <div className="controls" style={{ marginTop: 16 }}>
                   <button className="primary" onClick={() => void closing()}>
-                    {closingPlaying ? '■ Fade out closing song' : '▶ Play closing song'}
+                    {closingPlaying ? '■ Fade out end-of-show song' : '▶ Play end-of-show song'}
                   </button>
                   <button className="danger" onClick={() => void panic()}>Panic stop</button>
                 </div>

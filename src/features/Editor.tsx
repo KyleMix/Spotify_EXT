@@ -50,7 +50,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
 
       <div className="card">
         <SongField label="End-of-show song" kind="end-of-show" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
-          cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (sec, 0 = until faded out)"
+          cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (seconds, 0 = until you fade it out)"
           canSearch={canSearch} audition={audition}
           hint="Plays when you press Next after the last act finishes. Leave empty for no closing song."
           onChange={(p) => update((sh) => ({
@@ -85,6 +85,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               onDragStart={() => setDrag(i)}
               onDragOver={(e) => { e.preventDefault(); setOver(i); }}
               onDragEnd={() => { if (drag !== null && over !== null) reorder(drag, over); setDrag(null); setOver(null); }}>
+              <div className="handle" aria-hidden title="Drag to reorder (or use the arrows)">⋮⋮</div>
               <div className="n">{i + 1}</div>
               <div className="grow">
                 <div className="title">{s.performer || <span className="muted">{slotName(s, i)}</span>}{s.type !== 'act' && <span className="pill" style={{ marginLeft: 8 }}>{s.type}</span>}</div>
@@ -130,13 +131,14 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               )}
 
               <div className="grid g2">
-                <div><label>Set length (min)</label>
+                <div><label>Set length (minutes)</label>
                   <input type="number" min={0} value={slot.setLengthMin} onChange={(e) => patch(slot.id, { setLengthMin: num(e.target.value) })} /></div>
-                <div><label>Light warning at (min left)</label>
-                  <input type="number" min={0} value={slot.warnAtMin} onChange={(e) => patch(slot.id, { warnAtMin: num(e.target.value) })} /></div>
+                <div><label>Warning light at (minutes left)</label>
+                  <input type="number" min={0} value={slot.warnAtMin} onChange={(e) => patch(slot.id, { warnAtMin: num(e.target.value) })} />
+                  <div className="muted" style={{ marginTop: 4 }}>The timer turns amber (and the stage light flashes) this many minutes before time is up.</div></div>
               </div>
-              <div><label>Notes / intro</label><textarea rows={3} value={slot.notes} onChange={(e) => patch(slot.id, { notes: e.target.value })} /></div>
-              <div className="row"><div className="spacer" /><button className="danger" onClick={() => remove(slot.id)}>Delete slot</button></div>
+              <div><label>Notes / intro (shown on the Live screen)</label><textarea rows={3} value={slot.notes} onChange={(e) => patch(slot.id, { notes: e.target.value })} /></div>
+              <div className="row"><div className="spacer" /><button className="danger" onClick={() => { if (isBlankSlot(slot) || confirm(`Delete ${slotName(slot, show.slots.indexOf(slot))} from the lineup?`)) remove(slot.id); }}>Delete slot</button></div>
             </div>
           )}
         </div>
