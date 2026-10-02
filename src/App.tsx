@@ -10,6 +10,7 @@ import { RunSheet } from './features/RunSheet';
 import { Live } from './features/Live';
 import { GettingStarted } from './features/GettingStarted';
 import { applyTheme, loadTheme, nextTheme, THEMES, type Theme } from './features/theme';
+import { applyDensity, loadDensity, nextDensity, type Density } from './features/density';
 import type { Track } from './types';
 import { DmxOutput } from './dmx/output';
 
@@ -47,6 +48,8 @@ export function App() {
   const [songCheck, setSongCheck] = useState<{ bad: string[]; state: 'idle' | 'checking' | 'done' | 'error'; msg?: string }>({ bad: [], state: 'idle' });
   const [theme, setTheme] = useState<Theme>(loadTheme);
   useEffect(() => { applyTheme(theme); }, [theme]);
+  const [density, setDensity] = useState<Density>(loadDensity);
+  useEffect(() => { applyDensity(density); }, [density]);
 
   useEffect(() => {
     handleRedirect().then(() => setAuthed(isLoggedIn())).catch((e: Error) => setPmsg(e.message));
@@ -139,6 +142,7 @@ export function App() {
               <button role="menuitem" title="Download all your shows as a backup file" onClick={() => { close(); exportJson(); }}>Export</button>
               <button role="menuitem" title="Load shows from a backup file (merged with your current shows)" onClick={() => { close(); fileRef.current?.click(); }}>Import</button>
               <hr />
+              <button role="menuitem" title="Tighter spacing fits more on screen" onClick={() => setDensity(nextDensity(density))}>Density: {density === 'compact' ? 'Compact' : 'Comfortable'}</button>
               <button role="menuitem" title="Switch between dark, light and automatic (follows your device)" onClick={() => setTheme(nextTheme(theme))}>Theme: {THEMES.find((t) => t.id === theme)?.label}</button>
             </>
           )}

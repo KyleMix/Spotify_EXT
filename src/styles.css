@@ -40,6 +40,13 @@
   }
 }
 
+/* Compact density: tighter spacing and type, same components */
+:root[data-density="compact"]{
+  --s2:6px;--s3:8px;--s4:12px;--s5:14px;--s6:18px;--s7:24px;
+  --fs-md:14px;--fs-lg:16px;--fs-sm:12px;--target:30px;
+}
+:root[data-density="compact"] .controls button{min-height:48px}
+
 /* Base */
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-size:var(--fs-md);line-height:1.45;-webkit-font-smoothing:antialiased}
