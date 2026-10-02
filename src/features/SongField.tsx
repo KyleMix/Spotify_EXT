@@ -58,20 +58,20 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
       <div>
         <label>{label}</label>
         {track && (
-          <div className="grid" style={{ marginBottom: 8, gap: 8 }}>
+          <div className="grid mb-2 gap-2">
             <div className="row">
               {track.albumArt && <img className="art" src={track.albumArt} alt="" />}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="flex-1 minw-0">
                 <div>{track.name}</div>
                 <div className="muted">{track.artist} · {formatClock(track.durationMs)}</div>
               </div>
             </div>
-            <div className="row" style={{ flexWrap: 'wrap' }}>
+            <div className="row wrap">
               <button disabled={!audition.available} title={audition.available ? 'Play from the start point' : 'Connect Spotify and wait for "Spotify ready" to preview'}
                 onClick={() => audition.play(track, startMs, cueMs || 15000)}>▶ Preview</button>
               <a className="btnlink" href={suggestionUrl(track, kind, cueMs, style)} target="_blank" rel="noopener noreferrer"
                 title="Opens a Google search in a new tab">🔍 Suggested {kind}</a>
-              <select style={{ width: 'auto' }} value={style} onChange={(e) => pickStyle(e.target.value as SuggestionStyle)}
+              <select className="w-auto" value={style} onChange={(e) => pickStyle(e.target.value as SuggestionStyle)}
                 aria-label="Search wording" title="Search wording: try another if Google's answer isn't in seconds">
                 {SUGGESTION_STYLES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
@@ -82,7 +82,7 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
         )}
         {canSearch ? <TrackSearch onPick={(t) => onChange({ track: t })} />
           : <div className="muted">Connect Spotify (top right) to search for songs and hear previews.</div>}
-        {hint && <div className="muted" style={{ marginTop: 6 }}>{hint}</div>}
+        {hint && <div className="muted mt-2">{hint}</div>}
       </div>
       {track && (
         <div className="grid g2">
@@ -90,11 +90,11 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
             <TimeInput label="Song starts at" seconds={startMs / 1000} onCommit={(v) => onChange({ startMs: v * 1000 })} /></div>
           <div><label>{cueLabel}</label>
             <TimeInput label={cueLabel} seconds={cueMs / 1000} onCommit={(v) => onChange({ cueMs: v * 1000 })} /></div>
-          <div className="muted" style={{ gridColumn: '1 / -1' }}>Type seconds (41) or minutes:seconds (0:41). Press Enter or click away to save.</div>
-          <details style={{ gridColumn: '1 / -1' }}>
-            <summary style={{ cursor: 'pointer' }}>Fine-tune the start point by ear</summary>
-            <label style={{ marginTop: 8 }}>Nudge the start point and hear it</label>
-            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+          <div className="muted col-full">Type seconds (41) or minutes:seconds (0:41). Press Enter or click away to save.</div>
+          <details className="col-full">
+            <summary className="pointer">Fine-tune the start point by ear</summary>
+            <label className="mt-2">Nudge the start point and hear it</label>
+            <div className="row wrap gap-2">
               {NUDGES.map((d) => (
                 <button key={d} className="mini" disabled={!audition.available} aria-label={`Move start ${d > 0 ? 'later' : 'earlier'} by ${Math.abs(d)} seconds`}
                   onClick={() => {
@@ -113,7 +113,7 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
                   setNote(`Start set to ${(Math.round(pos / 100) / 10).toFixed(1)}s`);
                 }}>📍 Use current position</button>
             </div>
-            {note && <div className="muted" style={{ marginTop: 6 }} role="status">{note}</div>}
+            {note && <div className="muted mt-2" role="status">{note}</div>}
           </details>
         </div>
       )}

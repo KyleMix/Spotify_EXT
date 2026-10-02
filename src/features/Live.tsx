@@ -222,7 +222,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
         <div className="card muted" role="status">
           Ready check: {ready ? '✅ Spotify ready' : '⚠️ Spotify not ready (timer works, music is off)'} ·{' '}
           {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
-          {badCount > 0 && <> · <span style={{ color: 'var(--danger)' }}>⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
+          {badCount > 0 && <> · <span className="text-danger">⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
         </div>
       )}
       {phase === 'cued' && idx === 0 && !showStart && !done && (
@@ -236,15 +236,15 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
             <div className="muted">Total running time {runningTotal}</div>
             {show.closingTrack ? (
               <>
-                <div className="muted" style={{ marginTop: 16 }}>♪ {show.closingTrack.name} — {show.closingTrack.artist}</div>
-                <div className="controls" style={{ marginTop: 16 }}>
+                <div className="muted mt-4">♪ {show.closingTrack.name} — {show.closingTrack.artist}</div>
+                <div className="controls mt-4">
                   <button className="primary" onClick={() => void closing()}>
                     {closingPlaying ? '■ Fade out end-of-show song' : '▶ Play end-of-show song'}
                   </button>
                   <button className="danger" onClick={() => void panic()}>Panic stop</button>
                 </div>
               </>
-            ) : <div className="muted" style={{ marginTop: 16 }}>No end-of-show song set.</div>}
+            ) : <div className="muted mt-4">No end-of-show song set.</div>}
           </>
         ) : (
           <>
@@ -257,7 +257,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
               {phase === 'timing' ? formatClock(elapsed) : '0:00'}
             </div>
             <div className={`bar ${phase === 'timing' && st ? st.state : ''}`}><i style={{ width: `${pct}%` }} /></div>
-            <div className="muted" style={{ marginBottom: 20 }}>
+            <div className="muted mb-5">
               {phase === 'timing' && st
                 ? st.state === 'over' ? `Over by ${formatClock(st.overMs)}` : `${formatClock(st.remainingMs)} left of ${slot.setLengthMin} min`
                 : `Set length ${slot.setLengthMin} min`}
@@ -270,9 +270,9 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
               <button className="danger" onClick={() => void panic()}>Panic stop</button>
             </div>
             {phase === 'walkup' && settings.autoStartTimer && slot.track && ready && (
-              <div className="muted" style={{ marginTop: 12 }} role="status">Timer starts automatically when the music stops.</div>
+              <div className="muted mt-3" role="status">Timer starts automatically when the music stops.</div>
             )}
-            <div className="muted" style={{ marginTop: 16 }}>
+            <div className="muted mt-4">
               <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop
               {!ready && ' · Spotify not connected: timer works, music is off'}
             </div>
@@ -282,19 +282,19 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
 
       <div className="grid g2">
         <div className="card next">
-          <div><div className="muted">NEXT</div><div style={{ fontWeight: 600, fontSize: 18 }}>{next ? slotName(next, idx + 1) : '—'}</div>
+          <div><div className="muted">NEXT</div><div className="fw-semibold fs-lg">{next ? slotName(next, idx + 1) : '—'}</div>
             <div className="muted">{next?.track ? `♪ ${next.track.name}` : ''}</div></div>
           <div className="row"><button onClick={back} disabled={idx === 0 || testing}>← Back</button><button onClick={() => void skip()} disabled={done || testing}>Skip →</button></div>
         </div>
         <div className="card">
           <div className="row"><div className="muted">SHOW CLOCK</div><div className="spacer" /><strong>{runningTotal}</strong></div>
-          <div className="log" style={{ marginTop: 8 }}>
+          <div className="log mt-2">
             {log.length === 0 && <div className="muted">Set times will appear here.</div>}
             {log.map((l, i) => {
               const diff = l.elapsedMs - l.setLengthMin * 60_000;
               return (
                 <div className="li" key={i}><span>{l.name}</span>
-                  <span>{formatClock(l.elapsedMs)} <span className="muted" style={{ color: diff > 0 ? 'var(--danger)' : 'var(--ok)' }}>
+                  <span>{formatClock(l.elapsedMs)} <span className={`muted ${diff > 0 ? 'text-danger' : 'text-ok'}`}>
                     ({diff > 0 ? '+' : '-'}{formatClock(Math.abs(diff))})</span></span></div>
               );
             })}
@@ -302,8 +302,8 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
         </div>
       </div>
       <div className="card">
-        <div className="row" style={{ flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0 }}>Lineup length</h2>
+        <div className="row wrap">
+          <h2 className="m-0">Lineup length</h2>
           <span className="muted">{actCount(show.slots)} comedian spots · {Math.max(0, show.slots.length - idx - (done ? 0 : 1))} still to come</span>
           <div className="spacer" />
           <button disabled={!canRemove} title={canRemove ? 'Remove the last spot that has not gone up yet' : 'Only spots after the current act can be removed'}
@@ -315,22 +315,22 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
           <button className="primary" disabled={actCount(show.slots) >= MAX_SPOTS} title="Add a blank spot at the end of the list"
             onClick={() => resize(actCount(show.slots) + 1, protectedUpTo)}>+ Spot</button>
         </div>
-        <p className="muted" style={{ margin: '8px 0 0' }}>Open mic running long or short? Change the list on the fly. The act on stage and earlier acts are never removed.</p>
+        <p className="muted mt-2 mb-0">Open mic running long or short? Change the list on the fly. The act on stage and earlier acts are never removed.</p>
       </div>
       <div className="card">
         <div className="row">
-          <h2 style={{ margin: 0 }}>Fade length</h2>
+          <h2 className="m-0">Fade length</h2>
           <div className="spacer" />
           <strong>{(settings.fadeOutMs / 1000).toFixed(1)} s</strong>
         </div>
-        <p className="muted" style={{ margin: '8px 0' }}>
+        <p className="muted my-2">
           How long music takes to fade out when you press Fade out, when the comic takes the stage, and when a
           walk-up or walk-off reaches its time limit. Longer is smoother.
         </p>
         <input type="range" min={FADE_MIN_MS} max={FADE_MAX_MS} step={500} value={settings.fadeOutMs}
           aria-label="Fade length in seconds"
           onChange={(e) => setSettings((s) => ({ ...s, fadeOutMs: clampFade(Number(e.target.value)) }))} />
-        <label className="check" style={{ marginTop: 14 }}>
+        <label className="check mt-4">
           <input type="checkbox" checked={settings.autoStartTimer}
             onChange={(e) => setSettings((s) => ({ ...s, autoStartTimer: e.target.checked }))} />
           Start the timer automatically when the walk-up music stops

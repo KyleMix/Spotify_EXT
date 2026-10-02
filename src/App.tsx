@@ -91,7 +91,7 @@ export function App() {
       <header className="top">
         <div className="brand">Walk<span>·</span>Up</div>
         {show && (
-          <select style={{ width: 220 }} value={show.id} onChange={(e) => store.setActive(e.target.value)} aria-label="Select show">
+          <select className="show-select" value={show.id} onChange={(e) => store.setActive(e.target.value)} aria-label="Select show">
             {data.shows.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.date}</option>)}
           </select>
         )}
@@ -133,10 +133,10 @@ export function App() {
         )}
       </header>
 
-      {user && !user.premium && <div className="card" style={{ marginBottom: 16, borderColor: 'var(--warn)' }}>Spotify Premium is required for playback. Searching and the timer still work.</div>}
+      {user && !user.premium && <div className="card warn mb-4">Spotify Premium is required for playback. Searching and the timer still work.</div>}
       {pmsg && (
         <div className="card row" role="alert" style={{ marginBottom: 16, borderColor: pstatus === 'error' ? 'var(--danger)' : 'var(--warn)' }}>
-          <span style={{ flex: 1 }}>{pmsg}</span>
+          <span className="flex-1">{pmsg}</span>
           {authed && <button onClick={() => void login()}>Reconnect</button>}
           <button className="ghost" aria-label="Dismiss message" onClick={() => setPmsg('')}>✕</button>
         </div>

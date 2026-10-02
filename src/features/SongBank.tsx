@@ -96,11 +96,11 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
   return (
     <aside className="bank card" aria-label="Song bank">
       <div className="row">
-        <h2 style={{ margin: 0 }}>Song bank</h2><div className="spacer" />
+        <h2 className="m-0">Song bank</h2><div className="spacer" />
         {allowed && <button className="ghost mini" title="Reload playlists and songs from Spotify" onClick={() => { setPlaylists(null); setPlErr(''); void loadPlaylists(true); setSel(RECENT); }}>↻ Refresh</button>}
         <button className="ghost mini" aria-label="Collapse song bank" aria-expanded onClick={() => toggle(false)}>Hide ▸</button>
       </div>
-      <p className="muted" style={{ margin: '6px 0 10px' }}>
+      <p className="muted mt-2-mb-3">
         Pick a playlist, then drag a song onto the walk-up or walk-off box, or use the buttons.
       </p>
 
@@ -108,10 +108,10 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
       {connected && !allowed && (
         <div className="notice">
           <div>Playlist access needs one more Spotify permission. Reconnect once to allow it. Your shows are not affected.</div>
-          <button className="primary mini" style={{ marginTop: 8 }} onClick={() => void login()}>Reconnect to allow playlists</button>
+          <button className="primary mini mt-2" onClick={() => void login()}>Reconnect to allow playlists</button>
         </div>
       )}
-      {plErr && <div className="muted" role="alert" style={{ color: 'var(--danger)' }}>{plErr} <button className="mini" onClick={() => { setPlErr(''); void loadPlaylists(true); }}>Try again</button></div>}
+      {plErr && <div className="muted text-danger" role="alert">{plErr} <button className="mini" onClick={() => { setPlErr(''); void loadPlaylists(true); }}>Try again</button></div>}
       {plLoading && <div className="muted" role="status">Loading your playlists…</div>}
 
       {connected && (
@@ -120,18 +120,18 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
           {(playlists ?? []).map((p) => <option key={p.id} value={p.id}>{p.name} ({p.total})</option>)}
         </select>
       )}
-      {allowed && playlists && playlists.length === 0 && <div className="muted" style={{ marginTop: 6 }}>No playlists found on this Spotify account.</div>}
+      {allowed && playlists && playlists.length === 0 && <div className="muted mt-2">No playlists found on this Spotify account.</div>}
 
       {connected && (
         <>
-          <input type="search" style={{ marginTop: 8 }} placeholder="Filter this list…" aria-label="Filter songs in this list" value={filter}
+          <input type="search" className="mt-2" placeholder="Filter this list…" aria-label="Filter songs in this list" value={filter}
             onChange={(e) => { setFilter(e.target.value); setShown(PAGE); }} />
-          <div className="muted" style={{ margin: '6px 0' }} role="status">
+          <div className="muted my-2" role="status">
             {trLoading ? `Loading songs… ${progress ? `${Math.min(progress.done, progress.total)} of ${progress.total}` : ''}`
               : `${visible.length}${filter ? ` of ${tracks.length}` : ''} song${visible.length === 1 ? '' : 's'}`}
             {' · '}{slotLabel ? <>Setting for <b>{slotLabel}</b></> : 'Select a slot in the lineup to use the buttons'}
           </div>
-          {trErr && <div className="muted" role="alert" style={{ color: 'var(--danger)' }}>{trErr}</div>}
+          {trErr && <div className="muted text-danger" role="alert">{trErr}</div>}
           {!trLoading && !trErr && tracks.length === 0 && (
             <div className="muted">{sel === RECENT ? 'Songs you pick will show up here for quick reuse.' : 'This playlist has no playable songs.'}</div>
           )}
@@ -153,7 +153,7 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
               </div>
             ))}
           </div>
-          {visible.length > shown && <button style={{ marginTop: 8, width: '100%' }} onClick={() => setShown((n) => n + PAGE)}>Show more ({visible.length - shown} left)</button>}
+          {visible.length > shown && <button className="mt-2 w-full" onClick={() => setShown((n) => n + PAGE)}>Show more ({visible.length - shown} left)</button>}
         </>
       )}
     </aside>

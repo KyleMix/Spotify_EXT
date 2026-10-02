@@ -29,28 +29,28 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
   return (
     <div className="card">
       <div className="row">
-        <h2 style={{ margin: 0 }}>Stage light (DMX)</h2>
+        <h2 className="m-0">Stage light (DMX)</h2>
         <div className="spacer" />
         <span className={`pill ${pill}`}>
           {dmx.status === 'connected' ? 'Light connected' : dmx.status === 'connecting' ? 'Connecting…'
             : dmx.status === 'error' ? 'Light offline' : dmx.status === 'unsupported' ? 'Not supported' : 'Not connected'}
         </span>
       </div>
-      <p className="muted" style={{ margin: '8px 0 12px' }}>
+      <p className="muted mt-2-mb-3">
         {dmx.config.warnPulseSec > 0
           ? `At each act's light-warning time the light flashes red for ${dmx.config.warnPulseSec} seconds, then goes off. When time is up it turns red and stays on until the next act.`
           : "At each act's light-warning time the light turns red and stays on through overtime until the next act."}
         {' '}It is off the rest of the time.
       </p>
 
-      <div className="row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+      <div className="row wrap mb-3">
         {connected
           ? <button onClick={() => void dmx.disconnect()}>Disconnect light</button>
           : <button className="primary" disabled={dmx.status === 'unsupported' || dmx.status === 'connecting'} onClick={() => void dmx.connect()}>Connect light</button>}
-        {dmx.message && <span className="muted" role="status" style={{ color: dmx.status === 'error' ? 'var(--danger)' : undefined }}>{dmx.message}</span>}
+        {dmx.message && <span className={`muted${dmx.status === 'error' ? ' text-danger' : ''}`} role="status">{dmx.message}</span>}
       </div>
 
-      <div className="grid g4" style={{ marginBottom: 12 }}>
+      <div className="grid g4 mb-3">
         {FIELDS.map((f) => (
           <div key={f.key}>
             <label>{f.label}</label>
@@ -61,24 +61,24 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
       </div>
 
       <label>Test the light (each test lasts 4 seconds)</label>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+      <div className="row wrap gap-2">
         {([['Red', RED], ['Green', GREEN], ['Blue', BLUE], ['White', WHITE]] as const).map(([name, c]) => (
           <button key={name} className="mini" disabled={!connected} onClick={() => dmx.test(c)}>Test {name.toLowerCase()}</button>
         ))}
         <button className="mini" disabled={!connected} onClick={() => dmx.test(OFF)}>Light off</button>
       </div>
-      <div style={{ marginTop: 16 }}>
+      <div className="mt-4">
         <label>Channel finder (use this if a test shows the wrong color or nothing)</label>
-        <p className="muted" style={{ margin: '0 0 8px' }}>
+        <p className="muted mb-2 mt-0">
           Lights one channel of the light at a time, from your start address. Step through and watch the light. When a
           channel makes red, press <em>This channel is Red</em>; do the same for green and blue.
         </p>
-        <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+        <div className="row wrap gap-2">
           {!dmx.probing
             ? <button className="mini primary" disabled={!connected} onClick={() => lightChannel(1)}>Start channel finder</button>
             : <>
                 <button className="mini" disabled={ch <= 1} onClick={() => lightChannel(ch - 1)} aria-label="Previous channel">◀ Prev</button>
-                <strong style={{ minWidth: 90, textAlign: 'center' }} role="status">Channel {ch}</strong>
+                <strong className="minw-90" role="status">Channel {ch}</strong>
                 <button className="mini" disabled={ch >= MAX_PROBE} onClick={() => lightChannel(ch + 1)} aria-label="Next channel">Next ▶</button>
                 <button className="mini" onClick={() => { dmx.stopProbe(); setNote(''); }}>Stop</button>
               </>}
@@ -87,7 +87,7 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
             All channels full</button>
         </div>
         {dmx.probing && (
-          <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          <div className="row wrap gap-2 mt-2">
             <span className="muted">This channel is:</span>
             <button className="mini" onClick={() => assign('red', 'Red')}>Red</button>
             <button className="mini" onClick={() => assign('green', 'Green')}>Green</button>
@@ -95,14 +95,14 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
             <button className="mini" onClick={() => assign('dimmer', 'the dimmer')}>Dimmer</button>
           </div>
         )}
-        {note && <div className="muted" style={{ marginTop: 6 }} role="status">{note}</div>}
-        <p className="muted" style={{ margin: '8px 0 0' }}>
+        {note && <div className="muted mt-2" role="status">{note}</div>}
+        <p className="muted mt-2 mb-0">
           If no channel ever shows red or green, check the light itself: press <kbd>MODE</kbd> on the light to a built-in
           static color and see whether its red and green LEDs work. Press <kbd>SETUP</kbd> to see the channel mode
           (like <kbd>Ch.04</kbd>).
         </p>
       </div>
-      <p className="muted" style={{ margin: '10px 0 0' }}>
+      <p className="muted mt-3 mb-0">
         The number on the light's display (like <kbd>d001</kbd>) is the start address. Channel numbers count from 1 at that
         address. Press Test red, green and blue; if a color is wrong, change the channel numbers. If a test shows nothing, the
         light's mode may have a dimmer channel that needs to be set.
