@@ -50,7 +50,7 @@ export class WalkUpPlayer {
     });
     const p = new window.Spotify!.Player({
       name: 'Walk-Up Show Runner',
-      getOAuthToken: (cb) => { getAccessToken().then(cb).catch(() => this.set('error', 'Login expired')); },
+      getOAuthToken: (cb) => { getAccessToken().then(cb).catch(() => this.set('error', 'Your Spotify login expired. Click Reconnect (top right).')); },
       volume: 1,
     });
     p.addListener('ready', async ({ device_id }: { device_id: string }) => {
@@ -58,7 +58,7 @@ export class WalkUpPlayer {
       try { await transferPlayback(device_id); } catch { /* non-fatal */ }
       this.set('ready');
     });
-    p.addListener('not_ready', () => this.set('loading', 'Device offline'));
+    p.addListener('not_ready', () => this.set('loading', 'Spotify player went offline. Reconnecting…'));
     for (const ev of ['initialization_error', 'authentication_error', 'account_error', 'playback_error']) {
       p.addListener(ev, ({ message }: { message: string }) => this.set('error', message));
     }
@@ -94,7 +94,7 @@ export class WalkUpPlayer {
   }
 
   async play(track: Track, startOffsetMs: number, cueLengthMs: number, fadeInMs = 800) {
-    if (!this.deviceId) throw new Error('Player not ready');
+    if (!this.deviceId) throw new Error('The Spotify player is still starting. Wait for "Spotify ready" at the top, then try again.');
     clearTimeout(this.cueTimer);
     this.fadeToken++;
     this.currentUri = track.uri;

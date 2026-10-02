@@ -1,13 +1,27 @@
 import { getAccessToken } from './auth';
 import type { Track } from '../types';
 
+/** Plain-language text for a failed Spotify request, with the next step to try. */
+export function spotifyErrorMessage(status: number): string {
+  if (status === 401) return 'Your Spotify login expired. Click Reconnect (top right) and try again.';
+  if (status === 403) return 'Spotify refused this request. Check that your account is Premium and was added under User Management for this app. If you just added playlist access, click Reconnect.';
+  if (status === 404) return 'Spotify could not find that. It may have been deleted or made private.';
+  if (status === 429) return 'Spotify is busy (too many requests). Wait a few seconds and try again.';
+  if (status >= 500) return 'Spotify is having trouble right now. Try again in a moment.';
+  return `Spotify returned an unexpected error (${status}). Try again.`;
+}
+
 async function call(path: string, init: RequestInit = {}) {
   const token = await getAccessToken();
-  const res = await fetch(`https://api.spotify.com/v1${path}`, {
-    ...init, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init.headers },
-  });
-  if (res.status === 403) throw new Error('Spotify refused (403). Is your account on the app allowlist and Premium?');
-  if (!res.ok && res.status !== 204) throw new Error(`Spotify ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(`https://api.spotify.com/v1${path}`, {
+      ...init, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...init.headers },
+    });
+  } catch {
+    throw new Error("Can't reach Spotify. Check your internet connection and try again.");
+  }
+  if (!res.ok && res.status !== 204) throw new Error(spotifyErrorMessage(res.status));
   return res.status === 204 ? null : res.json();
 }
 
