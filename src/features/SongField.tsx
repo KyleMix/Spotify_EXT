@@ -52,17 +52,26 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
   } : {};
 
   return (
-    <div className={dropActive ? 'dz-wrap' : undefined} {...dropProps}>
-    <div className={`grid ${dropActive ? `dropzone${over ? ' over' : ''}` : ''}`}>
+    <div {...dropProps}>
+    <section className={`songcard ${track ? 'filled' : 'empty'}${dropActive ? ` dropzone${over ? ' over' : ''}` : ''}`} aria-label={label}>
+      <div className="songcard-head">
+        <span className="tag">{label}</span>
+        <span className={`state${track ? ' set' : ''}`}>{track ? '✓ Set' : 'Not set'}</span>
+      </div>
       {dropActive && <div className="dz-label" aria-hidden>⬇ Drop here to set the {kind} song</div>}
       <div>
-        <label>{label}</label>
+        {!track && (
+          <div className="empty-hint mb-3">
+            <div className="art" aria-hidden>♪</div>
+            <span>No {kind} song yet. Search below, or drag one in from the song bank.</span>
+          </div>
+        )}
         {track && (
           <div className="grid mb-2 gap-2">
-            <div className="row">
-              {track.albumArt && <img className="art" src={track.albumArt} alt="" />}
+            <div className="row song-main">
+              {track.albumArt ? <img className="art" src={track.albumArt} alt="" /> : <div className="art" aria-hidden />}
               <div className="flex-1 minw-0">
-                <div>{track.name}</div>
+                <div className="song-title ell" title={track.name}>{track.name}</div>
                 <div className="muted">{track.artist} · {formatClock(track.durationMs)}</div>
               </div>
             </div>
@@ -117,7 +126,7 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
           </details>
         </div>
       )}
-    </div>
+    </section>
     </div>
   );
 }

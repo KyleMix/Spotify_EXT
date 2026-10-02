@@ -112,7 +112,7 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
         </div>
       )}
       {plErr && <div className="muted text-danger" role="alert">{plErr} <button className="mini" onClick={() => { setPlErr(''); void loadPlaylists(true); }}>Try again</button></div>}
-      {plLoading && <div className="muted" role="status">Loading your playlists…</div>}
+      {plLoading && <div className="muted bank-status" role="status"><span className="spinner" aria-hidden />Loading your playlists…</div>}
 
       {connected && (
         <select aria-label="Choose a playlist" value={sel} onChange={(e) => setSel(e.target.value)} disabled={plLoading}>
@@ -126,7 +126,8 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
         <>
           <input type="search" className="mt-2" placeholder="Filter this list…" aria-label="Filter songs in this list" value={filter}
             onChange={(e) => { setFilter(e.target.value); setShown(PAGE); }} />
-          <div className="muted my-2" role="status">
+          <div className="muted my-2 bank-status" role="status">
+            {trLoading && <span className="spinner" aria-hidden />}
             {trLoading ? `Loading songs… ${progress ? `${Math.min(progress.done, progress.total)} of ${progress.total}` : ''}`
               : `${visible.length}${filter ? ` of ${tracks.length}` : ''} song${visible.length === 1 ? '' : 's'}`}
             {' · '}{slotLabel ? <>Setting for <b>{slotLabel}</b></> : 'Select a slot in the lineup to use the buttons'}
@@ -141,9 +142,10 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
               <div key={t.uri} className="bank-row" draggable
                 onDragStart={(e) => { e.dataTransfer.setData(TRACK_MIME, JSON.stringify(t)); e.dataTransfer.setData('text/plain', `${t.name} — ${t.artist}`); e.dataTransfer.effectAllowed = 'copy'; onDragState(true); }}
                 onDragEnd={() => onDragState(false)}>
+                <span className="handle" aria-hidden title="Drag onto a walk-up or walk-off box">⠿</span>
                 {t.albumArt ? <img className="art sm" src={t.albumArt} alt="" /> : <div className="art sm" />}
                 <div className="grow">
-                  <div className="ell" title={t.name}>{t.name}</div>
+                  <div className="ell t" title={t.name}>{t.name}</div>
                   <div className="muted ell">{t.artist} · {formatClock(t.durationMs)}</div>
                 </div>
                 <div className="bank-btns">

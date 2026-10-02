@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Show, Slot, Track } from '../types';
 import { actCount, applyWalkOffToAll, DEFAULTS, slotDefaults, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
 import { SongField, type Audition } from './SongField';
@@ -15,6 +15,16 @@ interface Props {
 }
 
 const num = (v: string, d = 0) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : d);
+
+function SongChip({ tag, track, bad }: { tag: string; track?: Track; bad?: boolean }) {
+  if (!track) return <span className="chip empty"><b>{tag}</b>&nbsp;none</span>;
+  return (
+    <span className={`chip${bad ? ' bad' : ''}`} title={`${track.name} — ${track.artist}`}>
+      {track.albumArt ? <img src={track.albumArt} alt="" /> : <i aria-hidden />}
+      <b>{tag}</b><span className="ell">{track.name}</span>
+    </span>
+  );
+}
 
 export function Editor({ show, update, canSearch, audition, songCheck, onCheckSongs }: Props) {
   const isBad = (t?: Track) => Boolean(t && songCheck.bad.includes(t.uri));
@@ -53,6 +63,7 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
     update((sh) => ({ ...sh, slots: next }));
     if (sel && !next.some((s) => s.id === sel)) setSel(undefined);
   };
+  useEffect(() => { document.body.classList.toggle('dragging-song', dragging); return () => document.body.classList.remove('dragging-song'); }, [dragging]);
   const spots = actCount(show.slots);
   const spotOptions = Array.from({ length: MAX_SPOTS + 1 }, (_, i) => i);
 
@@ -120,21 +131,30 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
           {show.slots.length === 0 && <div className="card muted">No one on the bill yet. Pick a number of spots above, or add a comedian.</div>}
           {show.slots.map((s, i) => (
             <div key={s.id} draggable
-              className={`slot ${sel === s.id ? 'sel' : ''} ${over === i && drag !== i ? 'dragover' : ''}`}
+              className={`slot ${sel === s.id ? 'sel' : ''} ${drag === i ? 'dragging' : ''} ${over === i && drag !== i ? 'dragover' : ''}`}
+              aria-current={sel === s.id} tabIndex={0}
               onClick={() => setSel(s.id)}
+              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); setSel(s.id); } }}
               onDragStart={() => setDrag(i)}
               onDragOver={(e) => { if (drag === null) return; e.preventDefault(); setOver(i); }}
               onDragEnd={() => { if (drag !== null && over !== null) reorder(drag, over); setDrag(null); setOver(null); }}>
-              <div className="handle" aria-hidden title="Drag to reorder (or use the arrows)">⋮⋮</div>
+              <div className="handle" aria-hidden title="Drag to reorder (or use the arrows)">⠿</div>
               <div className="n">{i + 1}</div>
               <div className="grow">
                 <div className="title">{s.performer || <span className="muted">{slotName(s, i)}</span>}{s.type !== 'act' && <span className="pill ml-2">{s.type}</span>}</div>
-                <div className="muted">{s.track ? `♪ ${s.track.name} — ${s.track.artist}` : 'No walk-up song'} · {s.setLengthMin} min
+                <div className="chips">
+                  <SongChip tag="Up" track={s.track} bad={isBad(s.track)} />
+                  {s.type === 'act' && <SongChip tag="Off" track={s.walkOffTrack} bad={isBad(s.walkOffTrack)} />}
+                  <span className="muted">{s.setLengthMin} min</span>
+                </div>
+                <div className="muted">
                   {isBad(s.track) && <span className="text-danger" title="Spotify says this walk-up song is unavailable. Pick another."> ⚠ walk-up unavailable</span>}
                   {isBad(s.walkOffTrack) && <span className="text-danger" title="Spotify says this walk-off song is unavailable. Pick another."> ⚠ walk-off unavailable</span>}</div>
               </div>
+              <div className="arrows">
               <button className="ghost" aria-label="Move up" disabled={i === 0} onClick={(e) => { e.stopPropagation(); reorder(i, i - 1); }}>↑</button>
               <button className="ghost" aria-label="Move down" disabled={i === show.slots.length - 1} onClick={(e) => { e.stopPropagation(); reorder(i, i + 1); }}>↓</button>
+              </div>
             </div>
           ))}
         </div>
