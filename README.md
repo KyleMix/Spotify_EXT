@@ -6,9 +6,15 @@ with a performance timer.
 
 ## Features
 - **Edit mode:** drag-to-reorder lineup, host/break slots, Spotify song search, per-slot start point,
-  walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
-- **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
-  timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
+  walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights (**More ▾ → Duplicate show**).
+  The walk-up, walk-off and end-of-show songs are shown as **song cards** with clear *Set* / *Not set* states, and each lineup row
+  shows its songs as **UP** / **OFF** chips. Lineup rows can be selected with the keyboard (Tab, then Enter or Space).
+- **Live mode:** two tabs. **Stage** is the show-night screen: Play walk-up → On stage (music fades, timer starts) → End set,
+  a big colour-coded timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log and
+  *Lineup length*. **Setup** holds what you configure before the show: *Test run*, *Fade length* and the auto-start checkbox,
+  *Stage light (DMX)* and *Clicker & Stream Deck buttons*. Keyboard shortcuts work from either tab.
+- **More menu:** the header's **More ▾** menu has *Duplicate show*, *Delete show* (shown when you have more than one show),
+  *Print run sheet*, *Export*, *Import*, *Density* (Comfortable / Compact) and *Theme* (Dark / Light / Auto).
 - **Walk-off & closing song:** comedians can have a walk-off song that plays when you end their set
   (hosts and breaks never do). Each show can have an end-of-show song that plays on Next after the last act.
   Every song has its own start point and play length.
@@ -18,7 +24,7 @@ with a performance timer.
   the app; confirm by ear with Preview. Time fields accept `41` or `0:41`.
 - **Stream Deck / extra controls:** besides Next, Fade out and Panic stop, you can assign buttons to **Skip act,
   Back one act, Play closing song, Stage light red (test) and Stage light off**. They start unassigned. In a Stream
-  Deck, add a *Hotkey* action set to a spare key (F13–F24), then in Live mode click *Add button* next to the action
+  Deck, add a *Hotkey* action set to a spare key (F13–F24), then in **Live → Setup** click *Add button* next to the action
   and press the Stream Deck key. Hotkeys only reach the window in front, so keep the Walk-Up tab active. Existing
   button assignments are kept when the app updates.
 - **Audition nudges:** under each song's time fields, −5 / −1 / −0.5 / +0.5 / +1 / +5 s buttons move the start
@@ -27,44 +33,48 @@ with a performance timer.
 - **Automatic timer start:** the comedian's timer starts by itself when the walk-up music has stopped: when the
   play length is reached and the fade finishes, after *Fade out* or *Panic stop*, or when the song ends on its own.
   Works for comedians, hosts and breaks. Pressing Next during the walk-up still starts it immediately. Slots with no
-  walk-up song stay manual. Turn it off with the checkbox in Live mode.
-- **Fade length:** one slider in Live mode (0.5–10 s, default 4 s) controls every fade-out. Button presses
+  walk-up song stay manual. Turn it off with the checkbox on the Live **Setup** tab.
+- **Fade length:** one slider on the Live **Setup** tab (0.5–10 s, default 4 s) controls every fade-out. Button presses
   take effect instantly; the music fades in the background.
 - **Keyboard & Bluetooth clicker:** `Space`/`Enter`/`→`/`PgDn` next step · `Esc`/`←`/`PgUp` fade out ·
   `P`/`B`/`.` panic stop. Clickers and page-turners appear as ordinary keyboards: pair one in your OS
-  Bluetooth settings, keep the tab focused, and use Live → *Bluetooth clicker* to reassign buttons
+  Bluetooth settings, keep the tab focused, and use **Live → Setup → Clicker & Stream Deck buttons** to reassign buttons
   (the "Last key" pill shows what the remote sends). Rapid double-presses of "next" are ignored so a
   double-click can't skip an act.
 - **Multi-computer:** local-first storage, optional cloud sync keyed to your Spotify account,
-  plus JSON export/import.
+  plus JSON export/import (**More ▾ → Export / Import**).
 
 - **Quick lineup size:** the *Spots* menu in Edit mode sets how many comedian spots the list has (blank spots are added or removed
-  from the end); *− Spot* / *+ Spot* adjust it by one. The same buttons are in Live mode (*Lineup length*) for open mics where the
+  from the end); *− Spot* / *+ Spot* adjust it by one. The same buttons are on the Live **Stage** tab (*Lineup length*) for open mics where the
   turnout changes mid-show. The act on stage and earlier acts are never removed. *Defaults for new spots* (under the show details)
   sets the set length, warning time and walk-up length for spots you add later.
 - **Song bank:** the side panel in Edit mode lists your Spotify playlists. Pick one, filter it, then drag a song onto the walk-up or
   walk-off box (or use *Set as walk-up / walk-off*) for the selected slot. Songs load page by page and are cached for the session
-  (*↻ Refresh* reloads them). *Recently used songs* works without playlist access. Collapse the panel with *Hide*.
+  (*↻ Refresh* reloads them). *Recently used songs* works without playlist access. Collapse the panel with *Hide*; below 1000 px
+  wide it becomes a bottom sheet that starts closed (tap *Song bank* to open it).
+  **Without a mouse:** press Enter on a song's ⠿ grip to pick it up, focus jumps to the walk-up box, Enter drops it there
+  (Tab to the walk-off box first if you want that one), Esc cancels. After any assignment from the bank an **Undo** toast appears for a few seconds.
   A comedian's walk-off can be copied to everyone with *Use this walk-off for all comedians*.
   Playlists need the `playlist-read-private` and `playlist-read-collaborative` scopes. If you linked Spotify before these existed,
   the panel shows *Reconnect to allow playlists* (one click; your shows are untouched).
 
-- **Test run (Live mode, before the show):** *Play all* (or *Start at the first song*) plays each walk-up in lineup order, up to
+- **Test run (Live → Setup tab, before the show):** *Play all* (or *Start at the first song*) plays each walk-up in lineup order, up to
   15 seconds each, with *Previous* / *Next song* / *Stop test*. It doesn't touch the timer, the set log or the stage light, and the
   real show controls are locked until you stop it (Fade out and Panic stop also end the test).
 - **Check songs are playable:** in Edit mode, one click asks Spotify whether each chosen song can be played in your country.
   Unavailable songs are marked ⚠ in the lineup and the end-of-show box, and the Live ready check counts them. Run it again after changing songs.
-- **Print run sheet:** the *Print run sheet* button prints a one-page lineup (planned start times, set lengths, each walk-up and
+- **Print run sheet:** *More ▾ → Print run sheet* prints a one-page lineup (planned start times, set lengths, each walk-up and
   walk-off with start point and length, notes, end-of-show song). Use your browser's print dialog to save it as a PDF.
-- **Theme:** the top-bar button cycles Dark → Light → Auto (follows your device). Search results have a *Show more results* button.
+- **Theme and density:** *More ▾ → Theme* cycles Dark → Light → Auto (follows your device); *More ▾ → Density* switches between
+  Comfortable and Compact spacing. Search results have a *Show more results* button.
 
 ## Stage light (DMX)
-Live mode can drive a DMX light: it **flashes red for a few seconds at each act's light-warning time** (3 seconds by
+Live mode (**Setup** tab) can drive a DMX light: it **flashes red for a few seconds at each act's light-warning time** (3 seconds by
 default; change it with *Warning flash*, or set 0 to stay on), goes off, then **turns red when time is up and stays on until
 the next comedian**. It is off the rest of the time. It uses a USB-to-DMX cable with an FTDI chip (an "Open DMX" style cable, e.g. DSD TECH SH-RS09B) and
 Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://127.0.0.1:5173` or an HTTPS site.
 1. Plug the cable into the PC and into the light's **DMX IN**. Set the light's DMX address (the `d001` on its display).
-2. In Live mode, open **Stage light (DMX)**, click **Connect light** and pick the cable's serial port
+2. In **Live → Setup**, open **Stage light (DMX)**, click **Connect light** and pick the cable's serial port
    (usually named *USB Serial Port (COMx)*). Later visits reconnect automatically.
 3. Set **Start address** to the light's address. Press **Test red / green / blue** and adjust the channel numbers until the
    colors match. If a test shows nothing, the light's mode may have a **dimmer** channel: enter its number.
