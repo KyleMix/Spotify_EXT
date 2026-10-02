@@ -199,7 +199,7 @@ header.top{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) 0;fle
 @keyframes slideout{to{opacity:0;transform:translateX(12px)}}
 .bank.collapsed{animation:fadein var(--dur) var(--ease)}
 @keyframes fadein{from{opacity:0}}
-.bank-list{display:grid;gap:2px;margin-top:var(--s2)}
+.bank-list{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;margin-top:var(--s2)}
 .bank-row{display:flex;gap:var(--s2);align-items:center;padding:var(--s2);border-radius:var(--r-md);cursor:grab;border:1px solid transparent;transition:background var(--dur-fast),border-color var(--dur-fast),opacity var(--dur-fast)}
 .bank-row:hover{background:var(--panel2);border-color:var(--line)}
 .bank-row:active{cursor:grabbing;opacity:.7}
