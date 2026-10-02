@@ -19,11 +19,18 @@ interface Props {
   onDragState: (dragging: boolean) => void;
   /** Bumps whenever a song is assigned elsewhere, so "Recently used" stays current. */
   recentVersion: number;
+  /** Song currently picked up with the keyboard, and the callback to pick up or put down (null). */
+  held: Track | null;
+  onHold: (t: Track | null) => void;
 }
 
-const readOpen = () => { try { return localStorage.getItem(OPEN_KEY) !== '0'; } catch { return true; } };
+/** Narrow screens show the bank as a bottom sheet, so it starts closed there until the user opens it. */
+const isNarrow = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(max-width: 1000px)').matches);
+const readOpen = () => {
+  try { const v = localStorage.getItem(OPEN_KEY); return v === null ? !isNarrow() : v !== '0'; } catch { return !isNarrow(); }
+};
 
-export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDragState, recentVersion }: Props) {
+export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDragState, recentVersion, held, onHold }: Props) {
   const [open, setOpen] = useState(readOpen);
   const [playlists, setPlaylists] = useState<PlaylistInfo[] | null>(null);
   const [plLoading, setPlLoading] = useState(false);
@@ -82,6 +89,9 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
       finally { if (run.current === my) { setTrLoading(false); setProgress(null); } }
     })();
   }, [sel, playlists, sel === RECENT ? recentVersion : 0]);
+
+  /** Pick up a song with the keyboard; on narrow screens the sheet tucks away so the target boxes are visible. */
+  const pickUp = (t: Track | null) => { onHold(t); if (t && isNarrow()) toggle(false); };
 
   const visible = useMemo(() => filterTracks(tracks, filter), [tracks, filter]);
 
@@ -142,7 +152,11 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
               <div key={t.uri} className="bank-row" draggable
                 onDragStart={(e) => { e.dataTransfer.setData(TRACK_MIME, JSON.stringify(t)); e.dataTransfer.setData('text/plain', `${t.name} — ${t.artist}`); e.dataTransfer.effectAllowed = 'copy'; onDragState(true); }}
                 onDragEnd={() => onDragState(false)}>
-                <span className="handle" aria-hidden title="Drag onto a walk-up or walk-off box">⠿</span>
+                <span className={`handle${held?.uri === t.uri ? ' held' : ''}`} role="button" tabIndex={0} aria-pressed={held?.uri === t.uri}
+                  aria-label={`Pick up ${t.name} by ${t.artist} to move it. Then press Enter on a walk-up or walk-off box.`}
+                  title="Drag this song onto a walk-up or walk-off box, or press Enter to pick it up"
+                  onClick={() => pickUp(held?.uri === t.uri ? null : t)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickUp(held?.uri === t.uri ? null : t); } }}>⠿</span>
                 {t.albumArt ? <img className="art sm" src={t.albumArt} alt="" /> : <div className="art sm" />}
                 <div className="grow">
                   <div className="ell t" title={t.name}>{t.name}</div>

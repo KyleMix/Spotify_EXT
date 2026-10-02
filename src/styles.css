@@ -201,13 +201,35 @@ header.top{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) 0;fle
 .bank-row:active{cursor:grabbing;opacity:.7}
 .bank-row .grow{flex:1;min-width:0}
 .bank-row .t{font-weight:var(--fw-medium)}
-.bank-btns{display:flex;flex-direction:column;gap:var(--s1)}
+.bank-btns{display:flex;flex-direction:column;gap:var(--s1);flex:none}
+.bank-btns button{padding:var(--s1) var(--s2);font-size:var(--fs-xs)}
+.bank-row .handle{padding:0}
 .notice{border:1px solid var(--warn);background:var(--warn-soft);border-radius:var(--r-md);padding:var(--s3);margin-bottom:var(--s2);font-size:var(--fs-sm)}
 .bank-status{display:flex;align-items:center;gap:var(--s2)}
 .spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--line-strong);border-top-color:var(--accent);animation:spin .7s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 body.dragging-song .songcard.dropzone{animation:breathe 1.2s ease-in-out infinite}
 @keyframes breathe{50%{box-shadow:0 0 0 4px var(--accent-soft)}}
+
+/* ---- Undo / hold snackbar ---- */
+.snack{position:fixed;bottom:var(--s5);left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:var(--s3);max-width:min(92vw,560px);
+  padding:var(--s3) var(--s4);background:var(--panel3);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-lg);box-shadow:var(--sh-2);animation:pop var(--dur) var(--ease)}
+.snack.hold{border-color:var(--accent)}
+.handle:focus-visible{border-radius:var(--r-sm)}
+.handle.held{color:var(--accent-ink);background:var(--accent);border-radius:var(--r-sm)}
+.songcard.dropzone:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+
+/* Narrow screens: the song bank becomes a bottom sheet */
+@media(max-width:1000px){
+  .app{padding-bottom:88px}
+  .bank{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:30;max-height:68vh;border-radius:var(--r-lg) var(--r-lg) 0 0;
+    box-shadow:var(--sh-2);animation:sheetup var(--dur) var(--ease);padding-top:var(--s5)}
+  .bank:not(.collapsed)::before{content:"";position:absolute;top:8px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:var(--r-pill);background:var(--line-strong)}
+  .bank.collapsed{background:var(--panel);border-top:1px solid var(--line-strong);padding:var(--s2) var(--s4);box-shadow:var(--sh-2);border-radius:var(--r-lg) var(--r-lg) 0 0}
+  .bank.collapsed button{writing-mode:horizontal-tb;width:100%;justify-content:center;padding:var(--s2)}
+  .snack{bottom:calc(var(--s5) + 56px)}
+}
+@keyframes sheetup{from{opacity:0;transform:translateY(24px)}}
 
 /* ---- Live mode ---- */
 .live{display:grid;gap:var(--s5);max-width:1100px;margin:0 auto}
