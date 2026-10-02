@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Show, Slot, Track } from '../types';
 import { actCount, applyWalkOffToAll, DEFAULTS, slotDefaults, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
 import { SongField, type Audition } from './SongField';
@@ -41,10 +41,42 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
     noteSong(p.track); noteSong(p.walkOffTrack);
     update((s) => ({ ...s, slots: s.slots.map((x) => (x.id === id ? { ...x, ...p } : x)) }));
   };
+  /** Song picked up with the keyboard (or a click on the grip), waiting to be dropped on a walk-up/walk-off card. */
+  const [held, setHeld] = useState<Track | null>(null);
+  /** Undo toast shown after a song is assigned from the song bank. */
+  const [toast, setToast] = useState<{ id: number; msg: string; undo: () => void } | null>(null);
+  const toastId = useRef(0);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 7000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const assignTo = (target: Slot, index: number, kind: 'walk-up' | 'walk-off', t: Track) => {
+    const prev = kind === 'walk-up' ? target.track : target.walkOffTrack;
+    patch(target.id, kind === 'walk-up' ? { track: t } : { walkOffTrack: t });
+    setToast({
+      id: ++toastId.current,
+      msg: `Set “${t.name}” as ${slotName(target, index)}'s ${kind} song.`,
+      undo: () => patch(target.id, kind === 'walk-up' ? { track: prev } : { walkOffTrack: prev }),
+    });
+  };
   const assign = (kind: 'walk-up' | 'walk-off', t: Track) => {
     if (!slot) return;
-    patch(slot.id, kind === 'walk-up' ? { track: t } : { walkOffTrack: t });
+    assignTo(slot, show.slots.indexOf(slot), kind, t);
   };
+  const hold = (t: Track | null) => {
+    if (t && !slot) return;
+    setHeld(t);
+  };
+  // While a song is held: Escape cancels, and focus jumps to the walk-up box so Enter drops it.
+  useEffect(() => {
+    if (!held) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setHeld(null); };
+    document.addEventListener('keydown', esc);
+    document.querySelector<HTMLElement>('[data-drop="walk-up"]')?.focus();
+    return () => document.removeEventListener('keydown', esc);
+  }, [held]);
   const add = (type: Slot['type']) => {
     const s = newSlot({ type, performer: type === 'host' ? 'Host' : type === 'break' ? 'Break' : '', setLengthMin: type === 'break' ? 10 : type === 'host' ? 3 : defs.setLengthMin,
       ...(type === 'act' ? { cueLengthMs: defs.cueLengthMs, warnAtMin: defs.warnAtMin } : {}) });
@@ -172,7 +204,8 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
               </div>
 
               <SongField label="Walk-up song" kind="walk-up" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
-                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} audition={audition} dropActive={dragging}
+                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} audition={audition} dropActive={dragging || Boolean(held)} held={held}
+                onDropTrack={(t) => { assignTo(slot, show.slots.indexOf(slot), 'walk-up', t); setHeld(null); }}
                 hint={slot.track ? undefined : `Tip: ${DEFAULTS.walkUpCueMs / 1000}s is a good starting length. Start on the hook.`}
                 onChange={(p) => patch(slot.id, {
                   ...('track' in p ? { track: p.track } : {}),
@@ -183,7 +216,8 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
               {slot.type === 'act' && (
                 <SongField label="Walk-off song" kind="walk-off" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
                   cueMs={slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs} cueLabel="Play walk-off for (sec, 0 = until stopped)"
-                  canSearch={canSearch} audition={audition} dropActive={dragging}
+                  canSearch={canSearch} audition={audition} dropActive={dragging || Boolean(held)} held={held}
+                  onDropTrack={(t) => { assignTo(slot, show.slots.indexOf(slot), 'walk-off', t); setHeld(null); }}
                   hint={slot.walkOffTrack ? undefined : `Plays when you end this set. Tip: ~${DEFAULTS.walkOffCueMs / 1000}s, starting on a big moment.`}
                   onChange={(p) => patch(slot.id, {
                     ...('track' in p ? { walkOffTrack: p.track } : {}),
@@ -217,7 +251,20 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
       </div>
     </div>
     <SongBank connected={canSearch} slotLabel={slot ? slotName(slot, show.slots.indexOf(slot)) : undefined}
-      canSetWalkOff={slot?.type === 'act'} onAssign={assign} onDragState={setDragging} recentVersion={recentV} />
+      canSetWalkOff={slot?.type === 'act'} onAssign={assign} onDragState={setDragging} recentVersion={recentV} held={held} onHold={hold} />
+    {held && (
+      <div className="snack hold" role="status">
+        <span>Holding <b>{held.name}</b>. Press Enter on the walk-up or walk-off box to drop it, or Esc to cancel.</span>
+        <button className="mini" onClick={() => setHeld(null)}>Cancel</button>
+      </div>
+    )}
+    {!held && toast && (
+      <div className="snack" role="status" key={toast.id}>
+        <span>{toast.msg}</span>
+        <button className="mini" onClick={() => { toast.undo(); setToast(null); }}>Undo</button>
+        <button className="ghost mini" aria-label="Dismiss" onClick={() => setToast(null)}>✕</button>
+      </div>
+    )}
     </div>
   );
 }

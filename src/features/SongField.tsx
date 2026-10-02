@@ -31,9 +31,13 @@ interface Props {
   audition: Audition;
   /** Song-bank drag in progress: show this field as a drop target. Omit for fields that don't accept drops. */
   dropActive?: boolean;
+  /** Song picked up with the keyboard; the card becomes focusable and Enter drops it. */
+  held?: Track | null;
+  /** Called instead of onChange when a song is dropped here (mouse drop or keyboard drop). */
+  onDropTrack?: (t: Track) => void;
 }
 
-export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, audition, dropActive }: Props) {
+export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, audition, dropActive, held, onDropTrack }: Props) {
   const [over, setOver] = useState(false);
   const [style, setStyle] = useState<SuggestionStyle>(loadSuggestStyle);
   const [note, setNote] = useState('');
@@ -47,18 +51,20 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
       const raw = e.dataTransfer.getData(TRACK_MIME);
       if (!raw) return;
       e.preventDefault();
-      try { onChange({ track: JSON.parse(raw) as Track }); } catch { /* ignore a malformed drop */ }
+      try { const t = JSON.parse(raw) as Track; if (onDropTrack) onDropTrack(t); else onChange({ track: t }); } catch { /* ignore a malformed drop */ }
     },
   } : {};
 
   return (
     <div {...dropProps}>
-    <section className={`songcard ${track ? 'filled' : 'empty'}${dropActive ? ` dropzone${over ? ' over' : ''}` : ''}`} aria-label={label}>
+    <section className={`songcard ${track ? 'filled' : 'empty'}${dropActive ? ` dropzone${over ? ' over' : ''}` : ''}`} aria-label={held ? `Drop ${held.name} here as the ${kind} song` : label}
+      data-drop={kind} tabIndex={held ? 0 : undefined}
+      onKeyDown={held && onDropTrack ? (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); onDropTrack(held); } } : undefined}>
       <div className="songcard-head">
         <span className="tag">{label}</span>
         <span className={`state${track ? ' set' : ''}`}>{track ? '✓ Set' : 'Not set'}</span>
       </div>
-      {dropActive && <div className="dz-label" aria-hidden>⬇ Drop here to set the {kind} song</div>}
+      {dropActive && <div className="dz-label" aria-hidden>{held ? `⏎ Press Enter to set the ${kind} song` : `⬇ Drop here to set the ${kind} song`}</div>}
       <div>
         {!track && (
           <div className="empty-hint mb-3">
