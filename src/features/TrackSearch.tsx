@@ -39,10 +39,10 @@ export function TrackSearch({ onPick, placeholder = 'Search Spotify for a song o
   return (
     <div>
       <input type="search" placeholder={placeholder} aria-label={placeholder} value={q} onChange={(e) => setQ(e.target.value)} />
-      {loading && <div className="muted" style={{ marginTop: 6 }} role="status">Searching…</div>}
-      {err && <div className="muted" style={{ color: 'var(--danger)', marginTop: 6 }} role="alert">{err}</div>}
+      {loading && <div className="muted mt-2" role="status">Searching…</div>}
+      {err && <div className="muted text-danger mt-2" role="alert">{err}</div>}
       {!loading && !err && searched && results.length === 0 && (
-        <div className="muted" style={{ marginTop: 6 }} role="status">No songs found for “{q}”. Try the song title plus the artist.</div>
+        <div className="muted mt-2" role="status">No songs found for “{q}”. Try the song title plus the artist.</div>
       )}
       <div className="results">
         {results.map((t) => (
@@ -53,7 +53,7 @@ export function TrackSearch({ onPick, placeholder = 'Search Spotify for a song o
         ))}
       </div>
       {more && results.length > 0 && (
-        <button className="mini" style={{ marginTop: 6 }} disabled={loadingMore} onClick={showMore}>{loadingMore ? 'Loading…' : 'Show more results'}</button>
+        <button className="mini mt-2" disabled={loadingMore} onClick={showMore}>{loadingMore ? 'Loading…' : 'Show more results'}</button>
       )}
     </div>
   );

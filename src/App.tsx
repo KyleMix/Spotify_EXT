@@ -10,8 +10,28 @@ import { RunSheet } from './features/RunSheet';
 import { Live } from './features/Live';
 import { GettingStarted } from './features/GettingStarted';
 import { applyTheme, loadTheme, nextTheme, THEMES, type Theme } from './features/theme';
+import { applyDensity, loadDensity, nextDensity, type Density } from './features/density';
 import type { Track } from './types';
 import { DmxOutput } from './dmx/output';
+
+/** Overflow menu: closes on outside click, Escape, or after an item is chosen. */
+function Menu({ label, children }: { label: string; children: (close: () => void) => React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', away); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <div className="menu" ref={ref}>
+      <button className="ghost" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>{label} ▾</button>
+      {open && <div className="menu-pop" role="menu">{children(() => setOpen(false))}</div>}
+    </div>
+  );
+}
 
 export function App() {
   const store = useStore();
@@ -28,6 +48,8 @@ export function App() {
   const [songCheck, setSongCheck] = useState<{ bad: string[]; state: 'idle' | 'checking' | 'done' | 'error'; msg?: string }>({ bad: [], state: 'idle' });
   const [theme, setTheme] = useState<Theme>(loadTheme);
   useEffect(() => { applyTheme(theme); }, [theme]);
+  const [density, setDensity] = useState<Density>(loadDensity);
+  useEffect(() => { applyDensity(density); }, [density]);
 
   useEffect(() => {
     handleRedirect().then(() => setAuthed(isLoggedIn())).catch((e: Error) => setPmsg(e.message));
@@ -91,15 +113,11 @@ export function App() {
       <header className="top">
         <div className="brand">Walk<span>·</span>Up</div>
         {show && (
-          <select style={{ width: 220 }} value={show.id} onChange={(e) => store.setActive(e.target.value)} aria-label="Select show">
+          <select className="show-select" value={show.id} onChange={(e) => store.setActive(e.target.value)} aria-label="Select show">
             {data.shows.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.date}</option>)}
           </select>
         )}
         <button onClick={() => store.addShow(newShow())}>+ New</button>
-        {show && <button onClick={() => store.addShow(duplicateShow(show))}>Duplicate</button>}
-        {show && data.shows.length > 1 && (
-          <button className="ghost danger" onClick={() => { if (confirm(`Delete "${show.name}"?`)) store.deleteShow(show.id); }}>Delete</button>
-        )}
         <div className="spacer" />
         <div className="seg" role="tablist" aria-label="Mode">
           <button role="tab" aria-selected={mode === 'edit'} title="Build the lineup and pick songs" className={mode === 'edit' ? 'on' : ''} onClick={() => setMode('edit')}>Edit</button>
@@ -112,12 +130,23 @@ export function App() {
             {store.sync === 'syncing' ? 'Syncing…' : store.sync === 'error' ? 'Sync error' : store.sync === 'idle' ? 'Synced' : 'Saved on this device'}
           </span>
         )}
-        <button className="ghost" title="Switch between dark, light and automatic (follows your device)" onClick={() => setTheme(nextTheme(theme))}>
-          {THEMES.find((t) => t.id === theme)?.label}
-        </button>
-        {show && <button className="ghost" title="Print the lineup with songs, start points and notes" onClick={() => window.print()}>Print run sheet</button>}
-        <button className="ghost" title="Download all your shows as a backup file" onClick={exportJson}>Export</button>
-        <button className="ghost" title="Load shows from a backup file (merged with your current shows)" onClick={() => fileRef.current?.click()}>Import</button>
+        <Menu label="More">
+          {(close) => (
+            <>
+              {show && <button role="menuitem" onClick={() => { close(); store.addShow(duplicateShow(show)); }}>Duplicate show</button>}
+              {show && data.shows.length > 1 && (
+                <button role="menuitem" className="danger" onClick={() => { close(); if (confirm(`Delete "${show.name}"?`)) store.deleteShow(show.id); }}>Delete show</button>
+              )}
+              <hr />
+              {show && <button role="menuitem" title="Print the lineup with songs, start points and notes" onClick={() => { close(); window.print(); }}>Print run sheet</button>}
+              <button role="menuitem" title="Download all your shows as a backup file" onClick={() => { close(); exportJson(); }}>Export</button>
+              <button role="menuitem" title="Load shows from a backup file (merged with your current shows)" onClick={() => { close(); fileRef.current?.click(); }}>Import</button>
+              <hr />
+              <button role="menuitem" title="Tighter spacing fits more on screen" onClick={() => setDensity(nextDensity(density))}>Density: {density === 'compact' ? 'Compact' : 'Comfortable'}</button>
+              <button role="menuitem" title="Switch between dark, light and automatic (follows your device)" onClick={() => setTheme(nextTheme(theme))}>Theme: {THEMES.find((t) => t.id === theme)?.label}</button>
+            </>
+          )}
+        </Menu>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importJson(e.target.files[0])} />
         {authed ? (
           <>
@@ -133,10 +162,10 @@ export function App() {
         )}
       </header>
 
-      {user && !user.premium && <div className="card" style={{ marginBottom: 16, borderColor: 'var(--warn)' }}>Spotify Premium is required for playback. Searching and the timer still work.</div>}
+      {user && !user.premium && <div className="card warn mb-4">Spotify Premium is required for playback. Searching and the timer still work.</div>}
       {pmsg && (
-        <div className="card row" role="alert" style={{ marginBottom: 16, borderColor: pstatus === 'error' ? 'var(--danger)' : 'var(--warn)' }}>
-          <span style={{ flex: 1 }}>{pmsg}</span>
+        <div className={`card row mb-4 ${pstatus === 'error' ? 'err' : 'warn'}`} role="alert">
+          <span className="flex-1">{pmsg}</span>
           {authed && <button onClick={() => void login()}>Reconnect</button>}
           <button className="ghost" aria-label="Dismiss message" onClick={() => setPmsg('')}>✕</button>
         </div>

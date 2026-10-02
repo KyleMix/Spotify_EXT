@@ -62,8 +62,8 @@ export function TestRun({ show, player, ready, onActive, stopSignal }: Props) {
 
   return (
     <div className="card">
-      <div className="row" style={{ flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0 }}>Test run</h2>
+      <div className="row wrap">
+        <h2 className="m-0">Test run</h2>
         <span className="muted">Hear each walk-up in order (up to {PREVIEW_MS / 1000}s each). The timer, log and stage light are not used.</span>
         <div className="spacer" />
         {!active ? (
@@ -79,15 +79,15 @@ export function TestRun({ show, player, ready, onActive, stopSignal }: Props) {
           </>
         )}
       </div>
-      {queue.length === 0 && <div className="muted" style={{ marginTop: 8 }}>No walk-up songs yet. Add them in Edit mode.</div>}
+      {queue.length === 0 && <div className="muted mt-2">No walk-up songs yet. Add them in Edit mode.</div>}
       {item && (
-        <div style={{ marginTop: 10 }} role="status">
+        <div className="mt-3" role="status">
           <b>{cur! + 1} of {queue.length}:</b> {slotName(item.s, item.i)} — ♪ {item.s.track!.name}
           {auto && <span className="muted"> · moving on automatically</span>}
         </div>
       )}
-      {!active && missing > 0 && queue.length > 0 && <div className="muted" style={{ marginTop: 8 }}>{missing} slot{missing === 1 ? ' has' : 's have'} no walk-up song and will be skipped.</div>}
-      {err && <div role="alert" style={{ color: 'var(--danger)', marginTop: 8 }}>{err}</div>}
+      {!active && missing > 0 && queue.length > 0 && <div className="muted mt-2">{missing} slot{missing === 1 ? ' has' : 's have'} no walk-up song and will be skipped.</div>}
+      {err && <div role="alert" className="text-danger mt-2">{err}</div>}
     </div>
   );
 }
