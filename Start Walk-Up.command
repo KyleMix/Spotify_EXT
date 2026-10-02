@@ -24,20 +24,25 @@ if [ ! -f .env.local ]; then
   echo
   echo "ONE-TIME SPOTIFY SETUP"
   echo "----------------------"
-  echo "1. Go to https://developer.spotify.com/dashboard and create an app."
-  echo "2. Add this Redirect URI:  http://127.0.0.1:5173/"
-  echo "3. Tick \"Web Playback SDK\", save, then copy the app's Client ID."
+  echo "Walk-Up needs a free Spotify \"Client ID\". Follow SETUP-SPOTIFY.md, or:"
+  echo
+  echo "1. Log in at https://developer.spotify.com/dashboard and click \"Create app\"."
+  echo "2. For \"Redirect URI\" type exactly:   http://127.0.0.1:5173/"
+  echo "   and click Add. Tick \"Web Playback SDK\", agree to the terms, Save."
+  echo "3. Open the app's Settings and copy the \"Client ID\"."
   echo
   open "https://developer.spotify.com/dashboard" 2>/dev/null
-  read -r -p "Paste your Spotify Client ID here and press Enter: " CID
-  CID="$(echo "$CID" | tr -d '[:space:]')"
-  if [ -z "$CID" ]; then
-    echo "No Client ID entered. Run this file again when you have it."
-    read -r -p "Press Enter to close..."
-    exit 1
-  fi
+  while true; do
+    read -r -p "Paste your Spotify Client ID here and press Enter: " CID
+    CID="$(echo "$CID" | tr -d '[:space:]"')"
+    if echo "$CID" | grep -Eq '^[0-9a-fA-F]{32}$'; then break; fi
+    echo
+    echo "That doesn't look right. The Client ID is 32 letters and numbers, like"
+    echo "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d. Copy it again from the app's Settings page."
+    echo
+  done
   echo "VITE_SPOTIFY_CLIENT_ID=$CID" > .env.local
-  echo "Saved."
+  echo "Saved. You won't be asked again."
 fi
 
 echo

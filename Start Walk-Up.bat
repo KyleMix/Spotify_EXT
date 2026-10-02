@@ -32,26 +32,38 @@ if not exist node_modules (
   )
 )
 
-if not exist .env.local (
-  echo.
-  echo  ONE-TIME SPOTIFY SETUP
-  echo  ----------------------
-  echo  1. Go to https://developer.spotify.com/dashboard and create an app.
-  echo  2. Add this Redirect URI:  http://127.0.0.1:5173/
-  echo  3. Tick "Web Playback SDK", save, then copy the app's Client ID.
-  echo.
-  start "" https://developer.spotify.com/dashboard
-  set /p CID=Paste your Spotify Client ID here and press Enter:
-  if "%CID%"=="" (
-    echo  No Client ID entered. Run this file again when you have it.
-    pause
-    exit /b 1
-  )
-  (echo VITE_SPOTIFY_CLIENT_ID=%CID%)>.env.local
-  echo.
-  echo  Saved.
-)
+if exist .env.local goto start_app
 
+echo.
+echo  ONE-TIME SPOTIFY SETUP
+echo  ----------------------
+echo  Walk-Up needs a free Spotify "Client ID". Follow SETUP-SPOTIFY.md, or:
+echo.
+echo  1. Log in at https://developer.spotify.com/dashboard and click "Create app".
+echo  2. For "Redirect URI" type exactly:   http://127.0.0.1:5173/
+echo     and click Add. Tick "Web Playback SDK", agree to the terms, Save.
+echo  3. Open the app's Settings and copy the "Client ID".
+echo.
+start "" https://developer.spotify.com/dashboard
+
+:ask
+set "CID="
+set /p CID=Paste your Spotify Client ID here and press Enter:
+set "CID=%CID: =%"
+set "CID=%CID:"=%"
+powershell -NoProfile -Command "if ('%CID%' -match '^[0-9a-fA-F]{32}$') { exit 0 } else { exit 1 }"
+if errorlevel 1 (
+  echo.
+  echo  That doesn't look right. The Client ID is 32 letters and numbers, like
+  echo  1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d. Copy it again from the app's Settings page.
+  echo.
+  goto ask
+)
+(echo VITE_SPOTIFY_CLIENT_ID=%CID%)>.env.local
+echo.
+echo  Saved. You won't be asked again.
+
+:start_app
 echo.
 echo  Starting Walk-Up. Your browser will open in a moment.
 echo  Keep this window open while you use the app. Close it to stop Walk-Up.
