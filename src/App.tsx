@@ -8,6 +8,7 @@ import { Editor } from './features/Editor';
 import type { Audition } from './features/SongField';
 import { Live } from './features/Live';
 import { GettingStarted } from './features/GettingStarted';
+import { applyTheme, loadTheme, nextTheme, THEMES, type Theme } from './features/theme';
 import type { Track } from './types';
 import { DmxOutput } from './dmx/output';
 
@@ -22,6 +23,8 @@ export function App() {
   const [pmsg, setPmsg] = useState('');
   const [player, setPlayer] = useState<WalkUpPlayer | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [theme, setTheme] = useState<Theme>(loadTheme);
+  useEffect(() => { applyTheme(theme); }, [theme]);
 
   useEffect(() => {
     handleRedirect().then(() => setAuthed(isLoggedIn())).catch((e: Error) => setPmsg(e.message));
@@ -95,6 +98,9 @@ export function App() {
             {store.sync === 'syncing' ? 'Syncing…' : store.sync === 'error' ? 'Sync error' : store.sync === 'idle' ? 'Synced' : 'Saved on this device'}
           </span>
         )}
+        <button className="ghost" title="Switch between dark, light and automatic (follows your device)" onClick={() => setTheme(nextTheme(theme))}>
+          {THEMES.find((t) => t.id === theme)?.label}
+        </button>
         <button className="ghost" title="Download all your shows as a backup file" onClick={exportJson}>Export</button>
         <button className="ghost" title="Load shows from a backup file (merged with your current shows)" onClick={() => fileRef.current?.click()}>Import</button>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importJson(e.target.files[0])} />

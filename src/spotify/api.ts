@@ -45,9 +45,12 @@ export const toTrack = (t: RawTrack): Track => ({
   albumArt: t.album.images.at(-1)?.url, durationMs: t.duration_ms,
 });
 
-export async function searchTracks(q: string): Promise<Track[]> {
+export const SEARCH_PAGE = 8;
+
+/** One page of search results; pass the number of results already shown as `offset` to get the next page. */
+export async function searchTracks(q: string, offset = 0): Promise<Track[]> {
   if (!q.trim()) return [];
-  const j = await call(`/search?type=track&limit=8&q=${encodeURIComponent(q)}`);
+  const j = await call(`/search?type=track&limit=${SEARCH_PAGE}&offset=${offset}&q=${encodeURIComponent(q)}`);
   return (j.tracks.items as RawTrack[]).map(toTrack);
 }
 
