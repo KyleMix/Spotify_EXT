@@ -18,7 +18,7 @@ button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
 button:disabled{opacity:.45;cursor:not-allowed}
 input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
-.app{max-width:1100px;margin:0 auto;padding:0 20px 60px}
+.app{max-width:1480px;margin:0 auto;padding:0 20px 60px}
 header.top{display:flex;align-items:center;gap:12px;padding:16px 0;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:24px}
 .brand{font-weight:700;font-size:18px;letter-spacing:-.01em;margin-right:8px}
 .brand span{color:var(--accent)}
@@ -76,3 +76,25 @@ label.check{display:flex;gap:10px;align-items:center;text-transform:none;letter-
 label.check input{width:auto}
 .handle{cursor:grab;color:var(--muted);letter-spacing:-2px;user-select:none;flex:none}
 summary{color:var(--muted);font-size:13px;margin-bottom:4px}
+/* Song bank */
+.edit-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.edit-layout:has(.bank.collapsed){grid-template-columns:minmax(0,1fr) 44px}
+@media(max-width:1000px){.edit-layout,.edit-layout:has(.bank.collapsed){grid-template-columns:1fr}}
+.bank{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.bank.collapsed{padding:0;border:0;background:none;overflow:visible}
+.bank.collapsed button{writing-mode:vertical-rl;padding:12px 8px;display:flex;gap:6px;align-items:center}
+.bank .vtext{letter-spacing:.04em}
+.bank-list{display:grid;gap:2px}
+.bank-row{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;cursor:grab;border:1px solid transparent}
+.bank-row:hover{background:var(--panel2)}
+.bank-row:active{cursor:grabbing}
+.bank-row .grow{flex:1;min-width:0}
+.bank-btns{display:flex;flex-direction:column;gap:4px}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art.sm{width:32px;height:32px}
+.notice{border:1px solid var(--warn);border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px}
+.dropzone{border:2px dashed var(--accent);border-radius:var(--radius);padding:10px;background:color-mix(in srgb,var(--accent) 8%,transparent);transition:.1s}
+.dropzone.over{background:color-mix(in srgb,var(--accent) 22%,transparent);border-style:solid}
+.dropzone .dz-label{font-weight:600;color:var(--accent);margin-bottom:6px}
+.dz-wrap{padding:2px}
+.live{max-width:1100px;margin:0 auto}

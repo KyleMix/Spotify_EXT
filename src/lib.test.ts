@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS } from './lib';
+import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults } from './lib';
 
 describe('timerStatus', () => {
   it('is ok, warn, then over', () => {
@@ -134,5 +134,24 @@ describe('slotName', () => {
   it('falls back to Spot N', () => {
     expect(slotName(newSlot(), 2)).toBe('Spot 3');
     expect(slotName(newSlot({ performer: ' Sam ' }), 0)).toBe('Sam');
+  });
+});
+
+describe('show defaults and bulk walk-off', () => {
+  it('new spots use the show defaults', () => {
+    const r = resizeActs([], 2, 0, { cueLengthMs: 12000, setLengthMin: 5, warnAtMin: 1 });
+    expect(r.every((s) => s.cueLengthMs === 12000 && s.setLengthMin === 5 && s.warnAtMin === 1)).toBe(true);
+  });
+  it('falls back to built-in defaults', () => {
+    expect(slotDefaults(newShow()).setLengthMin).toBe(10);
+  });
+  it('applies a walk-off to comedians only', () => {
+    const track = { uri: 'u', name: 'n', artist: 'a', durationMs: 1000 };
+    const from = newSlot({ walkOffTrack: track, walkOffStartMs: 3000, walkOffCueMs: 9000 });
+    const host = newSlot({ type: 'host' });
+    const out = applyWalkOffToAll([from, newSlot(), host], from);
+    expect(out[1].walkOffTrack).toEqual(track);
+    expect(out[1].walkOffCueMs).toBe(9000);
+    expect(out[2].walkOffTrack).toBeUndefined();
   });
 });

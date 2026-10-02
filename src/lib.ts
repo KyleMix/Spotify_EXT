@@ -1,4 +1,4 @@
-import type { AppData, Show, Slot } from './types';
+import type { AppData, Show, Slot, SlotDefaults } from './types';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
@@ -160,12 +160,22 @@ export const actCount = (slots: Slot[]) => slots.filter((s) => s.type === 'act')
  * spots are removed from the end (hosts and breaks stay). Slots before `keepFrom` are never removed, so a live
  * show can't lose the act on stage or any that already went up.
  */
-export function resizeActs(slots: Slot[], count: number, keepFrom = 0): Slot[] {
+export function resizeActs(slots: Slot[], count: number, keepFrom = 0, defaults?: SlotDefaults): Slot[] {
   const target = Math.max(0, Math.min(MAX_SPOTS, Math.floor(count)));
   let list = slots;
-  while (actCount(list) < target) list = [...list, newSlot({ type: 'act' })];
+  while (actCount(list) < target) list = [...list, newSlot({ type: 'act', ...defaults })];
   for (let i = list.length - 1; i >= keepFrom && actCount(list) > target; i--) {
     if (list[i].type === 'act') list = [...list.slice(0, i), ...list.slice(i + 1)];
   }
   return list;
+}
+
+export const DEFAULT_SLOT_DEFAULTS: SlotDefaults = { cueLengthMs: 25_000, setLengthMin: 10, warnAtMin: 2 };
+export const slotDefaults = (show: Show): SlotDefaults => ({ ...DEFAULT_SLOT_DEFAULTS, ...show.defaults });
+
+/** Copy one comedian's walk-off song and timing to every comedian in the lineup. */
+export function applyWalkOffToAll(slots: Slot[], from: Slot): Slot[] {
+  if (!from.walkOffTrack) return slots;
+  return slots.map((s) => (s.type === 'act'
+    ? { ...s, walkOffTrack: from.walkOffTrack, walkOffStartMs: from.walkOffStartMs, walkOffCueMs: from.walkOffCueMs } : s));
 }

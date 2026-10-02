@@ -4,6 +4,7 @@ import { formatClock, nudgeStart, suggestionUrl, SUGGESTION_STYLES, type Suggest
 import { TrackSearch } from './TrackSearch';
 import { TimeInput } from './TimeInput';
 import { loadSuggestStyle, saveSuggestStyle } from './settings';
+import { TRACK_MIME } from './SongBank';
 
 /** Lets the editor hear a song and read where playback is, so cue points can be set by ear. */
 export interface Audition {
@@ -28,15 +29,32 @@ interface Props {
   hint?: string;
   onChange: (p: { track?: Track; startMs?: number; cueMs?: number }) => void;
   audition: Audition;
+  /** Song-bank drag in progress: show this field as a drop target. Omit for fields that don't accept drops. */
+  dropActive?: boolean;
 }
 
-export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, audition }: Props) {
+export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSearch, hint, onChange, audition, dropActive }: Props) {
+  const [over, setOver] = useState(false);
   const [style, setStyle] = useState<SuggestionStyle>(loadSuggestStyle);
   const [note, setNote] = useState('');
   const pickStyle = (s: SuggestionStyle) => { setStyle(s); saveSuggestStyle(s); };
 
+  const dropProps = dropActive ? {
+    onDragOver: (e: React.DragEvent) => { if (e.dataTransfer.types.includes(TRACK_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setOver(true); } },
+    onDragLeave: (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false); },
+    onDrop: (e: React.DragEvent) => {
+      setOver(false);
+      const raw = e.dataTransfer.getData(TRACK_MIME);
+      if (!raw) return;
+      e.preventDefault();
+      try { onChange({ track: JSON.parse(raw) as Track }); } catch { /* ignore a malformed drop */ }
+    },
+  } : {};
+
   return (
-    <div className="grid">
+    <div className={dropActive ? 'dz-wrap' : undefined} {...dropProps}>
+    <div className={`grid ${dropActive ? `dropzone${over ? ' over' : ''}` : ''}`}>
+      {dropActive && <div className="dz-label" aria-hidden>⬇ Drop here to set the {kind} song</div>}
       <div>
         <label>{label}</label>
         {track && (
@@ -99,6 +117,7 @@ export function SongField({ label, kind, track, startMs, cueMs, cueLabel, canSea
           </details>
         </div>
       )}
+    </div>
     </div>
   );
 }

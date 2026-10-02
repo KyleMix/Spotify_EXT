@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import type { Show, Slot } from '../types';
-import { actCount, DEFAULTS, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
+import type { Show, Slot, Track } from '../types';
+import { actCount, applyWalkOffToAll, DEFAULTS, slotDefaults, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
 import { SongField, type Audition } from './SongField';
+import { SongBank } from './SongBank';
+import { rememberTrack } from './bank';
 
 interface Props {
   show: Show;
@@ -16,12 +18,23 @@ export function Editor({ show, update, canSearch, audition }: Props) {
   const [sel, setSel] = useState<string | undefined>(show.slots[0]?.id);
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [recentV, setRecentV] = useState(0);
   const slot = show.slots.find((s) => s.id === sel);
+  const defs = slotDefaults(show);
+  const noteSong = (t?: Track) => { if (t) { rememberTrack(t); setRecentV((v) => v + 1); } };
 
-  const patch = (id: string, p: Partial<Slot>) =>
+  const patch = (id: string, p: Partial<Slot>) => {
+    noteSong(p.track); noteSong(p.walkOffTrack);
     update((s) => ({ ...s, slots: s.slots.map((x) => (x.id === id ? { ...x, ...p } : x)) }));
+  };
+  const assign = (kind: 'walk-up' | 'walk-off', t: Track) => {
+    if (!slot) return;
+    patch(slot.id, kind === 'walk-up' ? { track: t } : { walkOffTrack: t });
+  };
   const add = (type: Slot['type']) => {
-    const s = newSlot({ type, performer: type === 'host' ? 'Host' : type === 'break' ? 'Break' : '', setLengthMin: type === 'break' ? 10 : type === 'host' ? 3 : 10 });
+    const s = newSlot({ type, performer: type === 'host' ? 'Host' : type === 'break' ? 'Break' : '', setLengthMin: type === 'break' ? 10 : type === 'host' ? 3 : defs.setLengthMin,
+      ...(type === 'act' ? { cueLengthMs: defs.cueLengthMs, warnAtMin: defs.warnAtMin } : {}) });
     update((sh) => ({ ...sh, slots: [...sh.slots, s] }));
     setSel(s.id);
   };
@@ -30,7 +43,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
 
   /** Grow/shrink the comedian list; confirm first if that would drop spots someone has filled in. */
   const setSpots = (count: number) => {
-    const next = resizeActs(show.slots, count);
+    const next = resizeActs(show.slots, count, 0, defs);
     const dropped = show.slots.filter((s) => !next.includes(s));
     if (dropped.some((s) => !isBlankSlot(s))
       && !confirm(`Remove ${dropped.length} spot${dropped.length === 1 ? '' : 's'} from the end of the list? Some already have a name or song.`)) return;
@@ -40,12 +53,24 @@ export function Editor({ show, update, canSearch, audition }: Props) {
   const spots = actCount(show.slots);
   const spotOptions = Array.from({ length: MAX_SPOTS + 1 }, (_, i) => i);
 
+  const setDefault = (p: Partial<typeof defs>) => update((s) => ({ ...s, defaults: { ...defs, ...p } }));
+
   return (
-    <div className="grid" style={{ gap: 20 }}>
+    <div className="edit-layout">
+    <div className="grid" style={{ gap: 20, minWidth: 0 }}>
       <div className="card grid g3">
         <div><label>Show name</label><input value={show.name} onChange={(e) => update((s) => ({ ...s, name: e.target.value }))} /></div>
         <div><label>Date</label><input type="date" value={show.date} onChange={(e) => update((s) => ({ ...s, date: e.target.value }))} /></div>
         <div><label>Venue</label><input value={show.venue} onChange={(e) => update((s) => ({ ...s, venue: e.target.value }))} /></div>
+        <details style={{ gridColumn: '1 / -1' }}>
+          <summary style={{ cursor: 'pointer' }}>Defaults for new spots</summary>
+          <div className="muted" style={{ margin: '6px 0' }}>Used when you add spots with the Spots menu or + Spot. Spots already in the list are not changed.</div>
+          <div className="grid g3">
+            <div><label>Set length (minutes)</label><input type="number" min={0} value={defs.setLengthMin} onChange={(e) => setDefault({ setLengthMin: num(e.target.value, 10) })} /></div>
+            <div><label>Warning at (minutes left)</label><input type="number" min={0} value={defs.warnAtMin} onChange={(e) => setDefault({ warnAtMin: num(e.target.value, 2) })} /></div>
+            <div><label>Walk-up plays for (seconds)</label><input type="number" min={0} value={defs.cueLengthMs / 1000} onChange={(e) => setDefault({ cueLengthMs: num(e.target.value, 25) * 1000 })} /></div>
+          </div>
+        </details>
       </div>
 
       <div className="card">
@@ -83,7 +108,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               className={`slot ${sel === s.id ? 'sel' : ''} ${over === i && drag !== i ? 'dragover' : ''}`}
               onClick={() => setSel(s.id)}
               onDragStart={() => setDrag(i)}
-              onDragOver={(e) => { e.preventDefault(); setOver(i); }}
+              onDragOver={(e) => { if (drag === null) return; e.preventDefault(); setOver(i); }}
               onDragEnd={() => { if (drag !== null && over !== null) reorder(drag, over); setDrag(null); setOver(null); }}>
               <div className="handle" aria-hidden title="Drag to reorder (or use the arrows)">⋮⋮</div>
               <div className="n">{i + 1}</div>
@@ -110,7 +135,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               </div>
 
               <SongField label="Walk-up song" kind="walk-up" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
-                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} audition={audition}
+                cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} audition={audition} dropActive={dragging}
                 hint={slot.track ? undefined : `Tip: ${DEFAULTS.walkUpCueMs / 1000}s is a good starting length. Start on the hook.`}
                 onChange={(p) => patch(slot.id, {
                   ...('track' in p ? { track: p.track } : {}),
@@ -121,13 +146,23 @@ export function Editor({ show, update, canSearch, audition }: Props) {
               {slot.type === 'act' && (
                 <SongField label="Walk-off song" kind="walk-off" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
                   cueMs={slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs} cueLabel="Play walk-off for (sec, 0 = until stopped)"
-                  canSearch={canSearch} audition={audition}
+                  canSearch={canSearch} audition={audition} dropActive={dragging}
                   hint={slot.walkOffTrack ? undefined : `Plays when you end this set. Tip: ~${DEFAULTS.walkOffCueMs / 1000}s, starting on a big moment.`}
                   onChange={(p) => patch(slot.id, {
                     ...('track' in p ? { walkOffTrack: p.track } : {}),
                     ...(p.startMs !== undefined ? { walkOffStartMs: p.startMs } : {}),
                     ...(p.cueMs !== undefined ? { walkOffCueMs: p.cueMs } : {}),
                   })} />
+              )}
+              {slot.type === 'act' && slot.walkOffTrack && actCount(show.slots) > 1 && (
+                <div className="row">
+                  <button className="mini" title="Copy this walk-off song and timing to every comedian in the lineup"
+                    onClick={() => {
+                      const others = show.slots.filter((x) => x.type === 'act' && x.id !== slot.id && x.walkOffTrack && x.walkOffTrack.uri !== slot.walkOffTrack!.uri);
+                      if (others.length && !confirm(`Replace the walk-off song of ${others.length} other comedian${others.length === 1 ? '' : 's'}?`)) return;
+                      update((sh) => ({ ...sh, slots: applyWalkOffToAll(sh.slots, slot) }));
+                    }}>Use this walk-off for all comedians</button>
+                </div>
               )}
 
               <div className="grid g2">
@@ -143,6 +178,9 @@ export function Editor({ show, update, canSearch, audition }: Props) {
           )}
         </div>
       </div>
+    </div>
+    <SongBank connected={canSearch} slotLabel={slot ? slotName(slot, show.slots.indexOf(slot)) : undefined}
+      canSetWalkOff={slot?.type === 'act'} onAssign={assign} onDragState={setDragging} recentVersion={recentV} />
     </div>
   );
 }
