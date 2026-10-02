@@ -6,6 +6,7 @@ import {
   bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
   type Action, type Bindings,
 } from './clicker';
+import { TestRun } from './TestRun';
 import { RemotePanel } from './RemotePanel';
 import type { DmxOutput } from '../dmx/output';
 import { DmxPanel } from '../dmx/DmxPanel';
@@ -34,6 +35,11 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
   const [lastKey, setLastKey] = useState('');
   const [settings, setSettings] = useState<AudioSettings>(loadSettings);
   const [closingPlaying, setClosingPlaying] = useState(false);
+  // A pre-show test run is playing: the real show controls are locked until it stops.
+  const [testing, setTesting] = useState(false);
+  const [testStop, setTestStop] = useState(0);
+  const testingRef = useRef(false);
+  testingRef.current = testing;
   // True only while a walk-up we started is playing; gates the automatic timer start.
   const armedRef = useRef(false);
   const phaseRef = useRef<Phase>('cued');
@@ -151,8 +157,8 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
   const primaryRef = useRef(primary);
   primaryRef.current = primary;
 
-  const fade = () => guard(async () => { setClosingPlaying(false); fadeOutNow(); });
-  const panic = () => guard(async () => { await player?.panic(); });
+  const fade = () => guard(async () => { setTestStop((n) => n + 1); setClosingPlaying(false); fadeOutNow(); });
+  const panic = () => guard(async () => { setTestStop((n) => n + 1); await player?.panic(); });
   const actions: Record<Action, () => unknown> = {
     next: primary, fade, panic,
     skip: () => { if (!done) return skip(); },
@@ -194,6 +200,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
       e.preventDefault(); // also stops Enter/Space from "clicking" whichever button has focus
       (document.activeElement as HTMLElement | null)?.blur?.();
       const t = Date.now();
+      if (testingRef.current && action !== 'fade' && action !== 'panic') return; // test run: only the stop keys work
       if (!canFire(lastFired.current[action], t, action)) return;
       lastFired.current[action] = t;
       void handlers.current[action]();
@@ -217,6 +224,9 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
           {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
           {badCount > 0 && <> · <span style={{ color: 'var(--danger)' }}>⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
         </div>
+      )}
+      {phase === 'cued' && idx === 0 && !showStart && !done && (
+        <TestRun show={show} player={player} ready={ready} onActive={setTesting} stopSignal={testStop} />
       )}
       <div className="card stage">
         {done ? (
@@ -253,7 +263,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
                 : `Set length ${slot.setLengthMin} min`}
             </div>
             <div className="controls">
-              <button className="primary" onClick={() => void primary()}>
+              <button className="primary" disabled={testing} title={testing ? 'Stop the test run first' : ''} onClick={() => void primary()}>
                 {phase === 'cued' ? '▶ Play walk-up' : phase === 'walkup' ? '🎤 On stage — start timer now' : '■ End set'}
               </button>
               <button onClick={() => void fade()}>Fade out</button>
@@ -274,7 +284,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
         <div className="card next">
           <div><div className="muted">NEXT</div><div style={{ fontWeight: 600, fontSize: 18 }}>{next ? slotName(next, idx + 1) : '—'}</div>
             <div className="muted">{next?.track ? `♪ ${next.track.name}` : ''}</div></div>
-          <div className="row"><button onClick={back} disabled={idx === 0}>← Back</button><button onClick={() => void skip()} disabled={done}>Skip →</button></div>
+          <div className="row"><button onClick={back} disabled={idx === 0 || testing}>← Back</button><button onClick={() => void skip()} disabled={done || testing}>Skip →</button></div>
         </div>
         <div className="card">
           <div className="row"><div className="muted">SHOW CLOCK</div><div className="spacer" /><strong>{runningTotal}</strong></div>

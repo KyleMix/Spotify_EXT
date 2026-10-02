@@ -6,6 +6,7 @@ import { handleRedirect, isConfigured, isLoggedIn, login, logout } from './spoti
 import { WalkUpPlayer, type PlayerStatus } from './spotify/player';
 import { Editor } from './features/Editor';
 import type { Audition } from './features/SongField';
+import { RunSheet } from './features/RunSheet';
 import { Live } from './features/Live';
 import { GettingStarted } from './features/GettingStarted';
 import { applyTheme, loadTheme, nextTheme, THEMES, type Theme } from './features/theme';
@@ -85,6 +86,7 @@ export function App() {
   };
 
   return (
+    <>
     <div className="app">
       <header className="top">
         <div className="brand">Walk<span>·</span>Up</div>
@@ -113,6 +115,7 @@ export function App() {
         <button className="ghost" title="Switch between dark, light and automatic (follows your device)" onClick={() => setTheme(nextTheme(theme))}>
           {THEMES.find((t) => t.id === theme)?.label}
         </button>
+        {show && <button className="ghost" title="Print the lineup with songs, start points and notes" onClick={() => window.print()}>Print run sheet</button>}
         <button className="ghost" title="Download all your shows as a backup file" onClick={exportJson}>Export</button>
         <button className="ghost" title="Load shows from a backup file (merged with your current shows)" onClick={() => fileRef.current?.click()}>Import</button>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && void importJson(e.target.files[0])} />
@@ -149,5 +152,7 @@ export function App() {
           : <Live key={show.id} show={show} unplayable={songCheck.bad} player={player} ready={pstatus === 'ready'} dmx={dmx}
             resize={(n, keepFrom) => store.updateShow(show.id, (sh) => ({ ...sh, slots: resizeActs(sh.slots, n, keepFrom, slotDefaults(sh)) }))} />}
     </div>
+    {show && <RunSheet show={show} />}
+    </>
   );
 }

@@ -49,6 +49,15 @@ with a performance timer.
   Playlists need the `playlist-read-private` and `playlist-read-collaborative` scopes. If you linked Spotify before these existed,
   the panel shows *Reconnect to allow playlists* (one click; your shows are untouched).
 
+- **Test run (Live mode, before the show):** *Play all* (or *Start at the first song*) plays each walk-up in lineup order, up to
+  15 seconds each, with *Previous* / *Next song* / *Stop test*. It doesn't touch the timer, the set log or the stage light, and the
+  real show controls are locked until you stop it (Fade out and Panic stop also end the test).
+- **Check songs are playable:** in Edit mode, one click asks Spotify whether each chosen song can be played in your country.
+  Unavailable songs are marked ⚠ in the lineup and the end-of-show box, and the Live ready check counts them. Run it again after changing songs.
+- **Print run sheet:** the *Print run sheet* button prints a one-page lineup (planned start times, set lengths, each walk-up and
+  walk-off with start point and length, notes, end-of-show song). Use your browser's print dialog to save it as a PDF.
+- **Theme:** the top-bar button cycles Dark → Light → Auto (follows your device). Search results have a *Show more results* button.
+
 ## Stage light (DMX)
 Live mode can drive a DMX light: it **flashes red for a few seconds at each act's light-warning time** (3 seconds by
 default; change it with *Warning flash*, or set 0 to stay on), goes off, then **turns red when time is up and stays on until

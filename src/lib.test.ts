@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults, showTrackUris } from './lib';
+import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults, showTrackUris, runSheetRows, describeCue } from './lib';
 
 describe('timerStatus', () => {
   it('is ok, warn, then over', () => {
@@ -161,5 +161,21 @@ describe('showTrackUris', () => {
     const tk = (u: string) => ({ uri: u, name: u, artist: 'a', durationMs: 1 });
     const show = newShow({ closingTrack: tk('c'), slots: [newSlot({ track: tk('a'), walkOffTrack: tk('b') }), newSlot({ track: tk('a') })] });
     expect(showTrackUris(show).sort()).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('runSheetRows', () => {
+  it('accumulates planned start times and describes songs', () => {
+    const track = { uri: 'u', name: 'Hello', artist: 'Adele', durationMs: 200000 };
+    const show = newShow({ slots: [newSlot({ performer: 'Sam', setLengthMin: 5, track, startOffsetMs: 41000, cueLengthMs: 25000 }), newSlot({ setLengthMin: 7 }), newSlot({ type: 'host' })] });
+    const rows = runSheetRows(show);
+    expect(rows.map((r) => r.startMin)).toEqual([0, 5, 12]);
+    expect(rows[0].walkUp).toBe('Hello — Adele (starts 0:41, plays 25s)');
+    expect(rows[1].name).toBe('Spot 2');
+    expect(rows[2].walkOff).toBe('');
+  });
+  it('says so when a song plays until stopped', () => {
+    expect(describeCue({ name: 'A', artist: 'B' }, 0, 0)).toBe('A — B (starts 0:00, plays until stopped)');
+    expect(describeCue(undefined, 0, 0)).toBe('');
   });
 });

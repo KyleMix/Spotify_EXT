@@ -187,3 +187,30 @@ export function showTrackUris(show: Show): string[] {
   if (show.closingTrack) uris.add(show.closingTrack.uri);
   return [...uris];
 }
+
+export interface RunSheetRow {
+  n: number; name: string; type: Slot['type']; startMin: number; lengthMin: number;
+  walkUp: string; walkOff: string; notes: string;
+}
+
+/** "Title — Artist (starts 0:41, plays 25s)"; empty string when there is no song. */
+export function describeCue(track: { name: string; artist: string } | undefined, startMs: number, cueMs: number): string {
+  if (!track) return '';
+  const plays = cueMs > 0 ? `plays ${Math.round(cueMs / 1000)}s` : 'plays until stopped';
+  return `${track.name} — ${track.artist} (starts ${formatClock(startMs)}, ${plays})`;
+}
+
+/** One row per slot for the printable run sheet, with each slot's planned start time in minutes from the top of the show. */
+export function runSheetRows(show: Show): RunSheetRow[] {
+  let at = 0;
+  return show.slots.map((s, i) => {
+    const row: RunSheetRow = {
+      n: i + 1, name: slotName(s, i), type: s.type, startMin: at, lengthMin: s.setLengthMin,
+      walkUp: describeCue(s.track, s.startOffsetMs, s.cueLengthMs),
+      walkOff: s.type === 'act' ? describeCue(s.walkOffTrack, s.walkOffStartMs ?? 0, s.walkOffCueMs ?? DEFAULTS.walkOffCueMs) : '',
+      notes: s.notes,
+    };
+    at += s.setLengthMin;
+    return row;
+  });
+}
