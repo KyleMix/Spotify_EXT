@@ -88,7 +88,7 @@ export function Editor({ show, update, canSearch, audition }: Props) {
 
       <div className="split">
         <div className="grid">
-          <div className="row">
+          <div className="row" style={{ flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0 }}>Lineup</h2><span className="muted">{show.slots.length} slots · {totalPlannedMin(show)} min planned</span>
             <div className="spacer" />
             <label className="check" title="Pick how many comedian spots the list should have. Blank spots are added or removed from the end.">

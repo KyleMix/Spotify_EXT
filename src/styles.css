@@ -98,3 +98,4 @@ summary{color:var(--muted);font-size:13px;margin-bottom:4px}
 .dropzone .dz-label{font-weight:600;color:var(--accent);margin-bottom:6px}
 .dz-wrap{padding:2px}
 .live{max-width:1100px;margin:0 auto}
+@media(max-width:1400px){.edit-layout .split{grid-template-columns:1fr}}

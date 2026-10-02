@@ -38,6 +38,17 @@ with a performance timer.
 - **Multi-computer:** local-first storage, optional cloud sync keyed to your Spotify account,
   plus JSON export/import.
 
+- **Quick lineup size:** the *Spots* menu in Edit mode sets how many comedian spots the list has (blank spots are added or removed
+  from the end); *− Spot* / *+ Spot* adjust it by one. The same buttons are in Live mode (*Lineup length*) for open mics where the
+  turnout changes mid-show. The act on stage and earlier acts are never removed. *Defaults for new spots* (under the show details)
+  sets the set length, warning time and walk-up length for spots you add later.
+- **Song bank:** the side panel in Edit mode lists your Spotify playlists. Pick one, filter it, then drag a song onto the walk-up or
+  walk-off box (or use *Set as walk-up / walk-off*) for the selected slot. Songs load page by page and are cached for the session
+  (*↻ Refresh* reloads them). *Recently used songs* works without playlist access. Collapse the panel with *Hide*.
+  A comedian's walk-off can be copied to everyone with *Use this walk-off for all comedians*.
+  Playlists need the `playlist-read-private` and `playlist-read-collaborative` scopes. If you linked Spotify before these existed,
+  the panel shows *Reconnect to allow playlists* (one click; your shows are untouched).
+
 ## Stage light (DMX)
 Live mode can drive a DMX light: it **flashes red for a few seconds at each act's light-warning time** (3 seconds by
 default; change it with *Warning flash*, or set 0 to stay on), goes off, then **turns red when time is up and stays on until
