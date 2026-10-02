@@ -195,6 +195,10 @@ header.top{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) 0;fle
 .bank.collapsed button{writing-mode:vertical-rl;padding:var(--s3) var(--s2);display:flex;gap:6px;align-items:center}
 .bank .vtext{letter-spacing:.04em}
 @keyframes slidein{from{opacity:0;transform:translateX(12px)}}
+.bank.closing{animation:slideout var(--dur) var(--ease) forwards;pointer-events:none}
+@keyframes slideout{to{opacity:0;transform:translateX(12px)}}
+.bank.collapsed{animation:fadein var(--dur) var(--ease)}
+@keyframes fadein{from{opacity:0}}
 .bank-list{display:grid;gap:2px;margin-top:var(--s2)}
 .bank-row{display:flex;gap:var(--s2);align-items:center;padding:var(--s2);border-radius:var(--r-md);cursor:grab;border:1px solid transparent;transition:background var(--dur-fast),border-color var(--dur-fast),opacity var(--dur-fast)}
 .bank-row:hover{background:var(--panel2);border-color:var(--line)}
@@ -230,6 +234,8 @@ body.dragging-song .songcard.dropzone{animation:breathe 1.2s ease-in-out infinit
   .snack{bottom:calc(var(--s5) + 56px)}
 }
 @keyframes sheetup{from{opacity:0;transform:translateY(24px)}}
+@keyframes sheetdown{to{opacity:0;transform:translateY(24px)}}
+@media(max-width:1000px){.bank.closing{animation:sheetdown var(--dur) var(--ease) forwards}}
 
 /* ---- Live mode ---- */
 .live{display:grid;gap:var(--s5);max-width:1100px;margin:0 auto}

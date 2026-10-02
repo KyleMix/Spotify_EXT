@@ -26,6 +26,8 @@ interface Props {
 
 /** Narrow screens show the bank as a bottom sheet, so it starts closed there until the user opens it. */
 const isNarrow = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(max-width: 1000px)').matches);
+/** Keep in step with --dur in styles.css (the exit animation length). */
+const CLOSE_MS = 180;
 const readOpen = () => {
   try { const v = localStorage.getItem(OPEN_KEY); return v === null ? !isNarrow() : v !== '0'; } catch { return !isNarrow(); }
 };
@@ -45,7 +47,18 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
   const run = useRef(0);
 
   const allowed = connected && hasScopes(PLAYLIST_SCOPES);
-  const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(OPEN_KEY, v ? '1' : '0'); } catch { /* ignore */ } };
+  /** True while the closing animation plays; the panel stays mounted until it ends. */
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+  const toggle = (v: boolean) => {
+    try { localStorage.setItem(OPEN_KEY, v ? '1' : '0'); } catch { /* ignore */ }
+    clearTimeout(closeTimer.current);
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (v || !open || reduced) { setClosing(false); setOpen(v); return; }
+    setClosing(true);
+    closeTimer.current = setTimeout(() => { setOpen(false); setClosing(false); }, CLOSE_MS);
+  };
 
   const loadPlaylists = useCallback(async (force: boolean) => {
     if (force) cacheClear();
@@ -104,11 +117,11 @@ export function SongBank({ connected, slotLabel, canSetWalkOff, onAssign, onDrag
   }
 
   return (
-    <aside className="bank card" aria-label="Song bank">
+    <aside className={`bank card${closing ? ' closing' : ''}`} aria-label="Song bank">
       <div className="row">
         <h2 className="m-0">Song bank</h2><div className="spacer" />
         {allowed && <button className="ghost mini" title="Reload playlists and songs from Spotify" onClick={() => { setPlaylists(null); setPlErr(''); void loadPlaylists(true); setSel(RECENT); }}>↻ Refresh</button>}
-        <button className="ghost mini" aria-label="Collapse song bank" aria-expanded onClick={() => toggle(false)}>Hide ▸</button>
+        <button className="ghost mini" aria-label="Collapse song bank" aria-expanded={!closing} onClick={() => toggle(false)}>Hide ▸</button>
       </div>
       <p className="muted mt-2-mb-3">
         Pick a playlist, then drag a song onto the walk-up or walk-off box, or use the buttons.
