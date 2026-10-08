@@ -45,37 +45,17 @@ export function parseMessage(raw: unknown): TimerMessage | null {
 }
 
 export interface TimerView {
-  /** The big number: time left (counting down), or the overtime once the set is over. */
+  /** The only thing on the comic's screen: time left (counting down), or the overtime once the set is over. */
   text: string;
   state: TimerState;
-  /** Small caption under the number. */
-  caption: string;
-  /** Header line above the name. */
-  heading: string;
-  /** 0-100 of the set used. */
-  pct: number;
 }
 
 /** What the pop-out window shows for a snapshot at wall-clock time `now`. */
 export function timerView(snap: TimerSnapshot, now: number): TimerView {
-  const total = snap.setLengthMin * 60_000;
-  if (snap.phase === 'timing') {
-    const elapsed = Math.max(0, now - snap.startedAt);
-    const st = timerStatus(elapsed, snap.setLengthMin, snap.warnAtMin);
-    const over = st.state === 'over';
-    return {
-      // Round a countdown up so it reads 0:01 until time is genuinely up, like a kitchen timer.
-      text: over ? (st.overMs < 1000 ? '0:00' : `+${formatClock(st.overMs)}`) : formatClock(Math.ceil(st.remainingMs / 1000) * 1000),
-      state: st.state,
-      caption: over ? 'OVER TIME. Please wrap up' : `of ${snap.setLengthMin} min`,
-      heading: 'On stage',
-      pct: total > 0 ? Math.min(100, (elapsed / total) * 100) : 0,
-    };
-  }
-  if (snap.phase === 'done') return { text: '—', state: 'idle', caption: 'Show complete', heading: '', pct: 0 };
-  return {
-    text: formatClock(total), state: 'idle', pct: 0,
-    caption: `${snap.setLengthMin} min set`,
-    heading: snap.phase === 'walkup' ? 'Walk-up playing' : 'Up next',
-  };
+  if (snap.phase === 'done') return { text: '', state: 'idle' }; // show over: a blank black screen
+  if (snap.phase !== 'timing') return { text: formatClock(snap.setLengthMin * 60_000), state: 'idle' };
+  const st = timerStatus(Math.max(0, now - snap.startedAt), snap.setLengthMin, snap.warnAtMin);
+  if (st.state === 'over') return { text: st.overMs < 1000 ? '0:00' : `+${formatClock(st.overMs)}`, state: 'over' };
+  // Round a countdown up so it reads 0:01 until time is genuinely up, like a kitchen timer.
+  return { text: formatClock(Math.ceil(st.remainingMs / 1000) * 1000), state: st.state };
 }

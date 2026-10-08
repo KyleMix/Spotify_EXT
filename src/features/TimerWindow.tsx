@@ -35,8 +35,7 @@ export function TimerWindow() {
   if (!snap) {
     return (
       <div className="tw tw-idle" onDoubleClick={toggleFull}>
-        <div className="tw-name">Waiting for the show…</div>
-        <div className="tw-caption">Open Live mode in the main Walk-Up window. Double-click here for full screen.</div>
+        <div className="tw-hint">Waiting for Live mode in the main Walk-Up window. Double-click for full screen.</div>
       </div>
     );
   }
@@ -44,11 +43,7 @@ export function TimerWindow() {
   const v = timerView(snap, now);
   return (
     <div className={`tw tw-${v.state}`} onDoubleClick={toggleFull} title={full ? 'Double-click to leave full screen' : 'Double-click for full screen'}>
-      <div className="tw-heading">{v.heading}{snap.position && v.heading ? ` · ${snap.position}` : ''}</div>
-      <div className="tw-name">{snap.name}</div>
       <div className="tw-clock" role="timer" aria-live="off">{v.text}</div>
-      <div className="tw-bar"><i style={{ width: `${v.pct}%` }} /></div>
-      <div className="tw-caption">{v.caption}</div>
     </div>
   );
 }
