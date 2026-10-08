@@ -398,7 +398,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
           <>
             <p className="muted my-2">
               The stage light stays off. Open the timer window, drag it to the screen facing the stage, and double-click it
-              for full screen. It counts down the set, turns amber at the warning time and flashes red when time is up.
+              for full screen. It counts down the set on a black screen: the numbers are white, turn yellow at each act's light-warning time and red when time is up.
               It only works while Live mode is open in this browser.
             </p>
             <button className="primary" onClick={openTimerWindow}>⧉ Open comedian timer window</button>
