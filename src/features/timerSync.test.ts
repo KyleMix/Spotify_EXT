@@ -6,24 +6,23 @@ const snap = (over: Partial<TimerSnapshot> = {}): TimerSnapshot => ({
 });
 
 describe('timerView', () => {
-  it('counts down and rounds up', () => {
-    expect(timerView(snap(), 1_000_000).text).toBe('5:00');
-    expect(timerView(snap(), 1_000_000 + 1500).text).toBe('4:59');
-    expect(timerView(snap(), 1_000_000 + 299_500).text).toBe('0:01');
+  it('counts up from 0:00', () => {
+    expect(timerView(snap(), 1_000_000).text).toBe('0:00');
+    expect(timerView(snap(), 1_000_000 + 61_500).text).toBe('1:01');
   });
-  it('turns yellow inside the warning window and red when over', () => {
+  it('turns yellow inside the warning window and red when over, still counting up', () => {
     expect(timerView(snap(), 1_000_000 + 239_000).state).toBe('ok');
     expect(timerView(snap(), 1_000_000 + 241_000).state).toBe('warn');
     const over = timerView(snap(), 1_000_000 + 330_000);
     expect(over.state).toBe('over');
-    expect(over.text).toBe('+0:30');
+    expect(over.text).toBe('5:30');
   });
   it('goes blank when the show is over', () => {
     expect(timerView(snap({ phase: 'done' }), 5).text).toBe('');
   });
-  it('shows the full set length before the timer starts', () => {
+  it('reads 0:00 before the timer starts', () => {
     const v = timerView(snap({ phase: 'cued' }), 5);
-    expect(v.text).toBe('5:00');
+    expect(v.text).toBe('0:00');
     expect(v.state).toBe('idle');
   });
 });

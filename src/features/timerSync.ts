@@ -45,7 +45,7 @@ export function parseMessage(raw: unknown): TimerMessage | null {
 }
 
 export interface TimerView {
-  /** The only thing on the comic's screen: time left (counting down), or the overtime once the set is over. */
+  /** The only thing on the comic's screen: how long they have been on stage, counting up from 0:00. */
   text: string;
   state: TimerState;
 }
@@ -53,9 +53,8 @@ export interface TimerView {
 /** What the pop-out window shows for a snapshot at wall-clock time `now`. */
 export function timerView(snap: TimerSnapshot, now: number): TimerView {
   if (snap.phase === 'done') return { text: '', state: 'idle' }; // show over: a blank black screen
-  if (snap.phase !== 'timing') return { text: formatClock(snap.setLengthMin * 60_000), state: 'idle' };
-  const st = timerStatus(Math.max(0, now - snap.startedAt), snap.setLengthMin, snap.warnAtMin);
-  if (st.state === 'over') return { text: st.overMs < 1000 ? '0:00' : `+${formatClock(st.overMs)}`, state: 'over' };
-  // Round a countdown up so it reads 0:01 until time is genuinely up, like a kitchen timer.
-  return { text: formatClock(Math.ceil(st.remainingMs / 1000) * 1000), state: st.state };
+  if (snap.phase !== 'timing') return { text: '0:00', state: 'idle' };
+  // Counts up and keeps going past the set length; the colour (yellow, then red) says when to wrap up.
+  const elapsed = Math.max(0, now - snap.startedAt);
+  return { text: formatClock(elapsed), state: timerStatus(elapsed, snap.setLengthMin, snap.warnAtMin).state };
 }
