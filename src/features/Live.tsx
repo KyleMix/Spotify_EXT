@@ -11,6 +11,7 @@ import { RemotePanel } from './RemotePanel';
 import type { DmxOutput } from '../dmx/output';
 import { DmxPanel } from '../dmx/DmxPanel';
 import { lightIsOn, OFF, RED } from '../dmx/frame';
+import { TIMER_CHANNEL, TIMER_WINDOW_NAME, parseMessage, type TimerSnapshot } from './timerSync';
 import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
 
 type Phase = 'cued' | 'walkup' | 'timing';
@@ -88,8 +89,37 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
   // Stage light: a short red flash at the light-warning time, then solid red once time is up until the next act.
   const lightRed = slot ? lightIsOn(phase, elapsed, slot.setLengthMin, slot.warnAtMin, dmx.config.warnPulseSec) : false;
-  useEffect(() => { dmx.setShowColor(lightRed ? RED : OFF); }, [dmx, lightRed]);
+  // In pop-out display mode the DMX light stays off; the comedian watches the second-screen timer instead.
+  const lightMode = settings.warningMode === 'light';
+  useEffect(() => { dmx.setShowColor(lightRed && lightMode ? RED : OFF); }, [dmx, lightRed, lightMode]);
   useEffect(() => () => dmx.setShowColor(OFF), [dmx]);
+
+  // Mirror the current act to the pop-out timer window (same browser, any number of copies).
+  const snap: TimerSnapshot = {
+    phase: done ? 'done' : phase, name: slot ? slotName(slot, idx) : '', startedAt, setLengthMin: slot?.setLengthMin ?? 0,
+    warnAtMin: slot?.warnAtMin ?? 0, position: done ? '' : `${idx + 1} of ${show.slots.length}`,
+    next: next ? slotName(next, idx + 1) : '',
+  };
+  const snapRef = useRef(snap);
+  snapRef.current = snap;
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    const ch = new BroadcastChannel(TIMER_CHANNEL);
+    channelRef.current = ch;
+    const send = () => ch.postMessage({ type: 'state', snap: snapRef.current });
+    ch.onmessage = (e) => { if (parseMessage(e.data)?.type === 'hello') send(); };
+    send();
+    return () => { ch.postMessage({ type: 'bye' }); ch.close(); channelRef.current = null; };
+  }, []);
+  const snapKey = JSON.stringify(snap);
+  useEffect(() => { channelRef.current?.postMessage({ type: 'state', snap: snapRef.current }); }, [snapKey]);
+  const popoutRef = useRef<Window | null>(null);
+  const openTimerWindow = () => {
+    const w = window.open(`${location.pathname}?timer=1`, TIMER_WINDOW_NAME, 'popup=yes,width=960,height=540');
+    if (!w) { setErr('The browser blocked the pop-out window. Allow pop-ups for this site and try again.'); return; }
+    popoutRef.current = w;
+    w.focus();
+  };
 
   // The current act (and earlier ones) stay put; only later spots can be removed, and only when blank or unplayed.
   const protectedUpTo = Math.min(show.slots.length, idx + 1);
@@ -283,6 +313,9 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
             {phase === 'walkup' && settings.autoStartTimer && slot.track && ready && (
               <div className="muted mt-3" role="status">Timer starts automatically when the music stops.</div>
             )}
+            {!lightMode && (
+              <div className="mt-3"><button onClick={openTimerWindow} title="Opens a copy of the timer you can drag to the comedian's screen">⧉ Open comedian timer window</button></div>
+            )}
             <div className="muted mt-4">
               <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop
               {!ready && ' · Spotify not connected: timer works, music is off'}
@@ -352,7 +385,27 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
           Start the timer automatically when the walk-up music stops
         </label>
       </div>
-      <DmxPanel dmx={dmx} />
+      <div className="card">
+        <h2 className="m-0">Time warning</h2>
+        <p className="muted my-2">How does the comedian know their time is running out?</p>
+        <div className="seg" role="radiogroup" aria-label="Time warning mode">
+          <button role="radio" aria-checked={lightMode} className={lightMode ? 'on' : ''}
+            onClick={() => setSettings((s) => ({ ...s, warningMode: 'light' }))}>Stage light</button>
+          <button role="radio" aria-checked={!lightMode} className={!lightMode ? 'on' : ''}
+            onClick={() => setSettings((s) => ({ ...s, warningMode: 'display' }))}>Pop-out timer</button>
+        </div>
+        {!lightMode && (
+          <>
+            <p className="muted my-2">
+              The stage light stays off. Open the timer window, drag it to the screen facing the stage, and double-click it
+              for full screen. It counts down the set, turns amber at the warning time and flashes red when time is up.
+              It only works while Live mode is open in this browser.
+            </p>
+            <button className="primary" onClick={openTimerWindow}>⧉ Open comedian timer window</button>
+          </>
+        )}
+      </div>
+      {lightMode && <DmxPanel dmx={dmx} />}
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
       </div>

@@ -283,3 +283,21 @@ body.dragging-song .songcard.dropzone{animation:breathe 1.2s ease-in-out infinit
   .runsheet tr{break-inside:avoid}
   .runsheet .small{font-size:9pt;color:#444}
 }
+
+/* Pop-out comedian timer (?timer=1): always dark, huge, readable across a room. */
+body:has(.tw){margin:0;background:#000}
+.tw{min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4vmin;background:#000;color:#e5e7eb;cursor:default;user-select:none}
+.tw-heading{font-size:clamp(14px,3vmin,28px);font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#9ca3af}
+.tw-name{font-size:clamp(24px,6vmin,64px);font-weight:700;margin:1vmin 0}
+.tw-clock{font-variant-numeric:tabular-nums;font-size:clamp(80px,34vmin,420px);font-weight:700;line-height:1;letter-spacing:-.03em;margin:2vmin 0}
+.tw-bar{width:min(80vw,900px);height:1.6vmin;background:#27272a;border-radius:99px;overflow:hidden}
+.tw-bar>i{display:block;height:100%;background:#34d399;transition:width .3s linear}
+.tw-caption{font-size:clamp(16px,3.4vmin,36px);margin-top:2vmin;color:#9ca3af}
+.tw-ok .tw-clock{color:#34d399}
+.tw-warn .tw-clock{color:#f5a524}.tw-warn .tw-bar>i{background:#f5a524}
+.tw-over{background:#7f1d1d;animation:tw-flash 1s steps(2,jump-none) infinite}
+.tw-over .tw-clock,.tw-over .tw-name,.tw-over .tw-caption,.tw-over .tw-heading{color:#fff}
+.tw-over .tw-bar>i{background:#fff}
+.tw-idle .tw-name{font-size:clamp(20px,5vmin,48px)}
+@keyframes tw-flash{0%{background:#7f1d1d}100%{background:#b91c1c}}
+@media (prefers-reduced-motion:reduce){.tw-over{animation:none;background:#991b1b}}

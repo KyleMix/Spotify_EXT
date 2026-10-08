@@ -4,9 +4,13 @@ export interface AudioSettings {
   fadeOutMs: number;
   /** Start the comedian's timer automatically once the walk-up music has stopped. */
   autoStartTimer: boolean;
+  /** 'light' drives the DMX stage light; 'display' leaves the light off and uses the pop-out timer instead. */
+  warningMode: WarningMode;
 }
 
-export const DEFAULT_SETTINGS: AudioSettings = { fadeOutMs: 4000, autoStartTimer: true };
+export type WarningMode = 'light' | 'display';
+
+export const DEFAULT_SETTINGS: AudioSettings = { fadeOutMs: 4000, autoStartTimer: true, warningMode: 'light' };
 export const FADE_MIN_MS = 500;
 export const FADE_MAX_MS = 10_000;
 
@@ -19,7 +23,7 @@ export function loadSettings(): AudioSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null');
     if (raw && typeof raw.fadeOutMs === 'number') {
-      return { fadeOutMs: clampFade(raw.fadeOutMs), autoStartTimer: raw.autoStartTimer !== false };
+      return { fadeOutMs: clampFade(raw.fadeOutMs), autoStartTimer: raw.autoStartTimer !== false, warningMode: raw.warningMode === 'display' ? 'display' : 'light' };
     }
   } catch { /* defaults */ }
   return DEFAULT_SETTINGS;
