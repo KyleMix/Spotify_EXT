@@ -9,6 +9,11 @@ with a performance timer.
   walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
 - **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
   timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
+- **Pop-out comedian timer (no light):** Live → Setup → *Time warning* → **Pop-out timer** turns off the DMX stage
+  light and adds an *Open comedian timer window* button. The window shows nothing but a big clock of how long the comedian has
+  been on stage, counting up from 0:00, on a black background that never changes colour: the numbers are white, turn
+  yellow at the light-warning time, and turn red (still counting up) once their set length is reached. Drag it to the screen facing the stage
+  and double-click it for full screen. It mirrors Live mode in the same browser, so keep the main window open.
 - **Walk-off & closing song:** comedians can have a walk-off song that plays when you end their set
   (hosts and breaks never do). Each show can have an end-of-show song that plays on Next after the last act.
   Every song has its own start point and play length.

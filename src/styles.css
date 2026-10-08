@@ -283,3 +283,12 @@ body.dragging-song .songcard.dropzone{animation:breathe 1.2s ease-in-out infinit
   .runsheet tr{break-inside:avoid}
   .runsheet .small{font-size:9pt;color:#444}
 }
+
+/* Pop-out comedian timer (?timer=1): only the clock, on a background that is always black so the screen never
+   throws coloured light on the comic. The numbers are white, yellow at the warning time, red when over. */
+body:has(.tw){margin:0;background:#000}
+.tw{min-height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:center;text-align:center;padding:4vmin;background:#000;cursor:default;user-select:none}
+.tw-clock{font-variant-numeric:tabular-nums;font-size:clamp(80px,min(42vmin,24vw),640px);font-weight:700;line-height:1;letter-spacing:-.03em;color:#fff}
+.tw-warn .tw-clock{color:#facc15}
+.tw-over .tw-clock{color:#ef4444}
+.tw-hint{font-size:clamp(14px,2.4vmin,22px);color:#52525b}
