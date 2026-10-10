@@ -205,7 +205,7 @@ Deck, with smooth fades and no flicker for 30 minutes straight.
 Mic input moved onto the effects engine, sound effects per pixel, sensitivity and auto-gain, a meter.
 **Done when:** the sound look visibly follows a song's beat on both bars in the room.
 
-### Phase 4: Show and Spotify reintegration
+### Phase 4: Show and Spotify reintegration ✅ built (needs a real show)
 Show events (walk-up starts, on stage, warning, time's up, walk-off, closing) fire looks. The lineup, timer and
 Spotify move to sit around the lighting screens.
 
@@ -225,6 +225,10 @@ Spotify move to sit around the lighting screens.
   (beat colors, beat chase, ripple, music meter, bass/mid/treble, color to music), all pure and tested. Checked end to end
   with a synthetic 120 BPM kick-drum track fed in as the microphone: 10 beats per 5 s, beat chase stepping one pod per beat
   across both bars.
+- **Phase 4:** Live mode reports two more moments (*Pre-show*, *Walk-off* while a walk-off song plays), the Stage screen
+  carries a Lights dock (status, preview, master, looks, back to show, blackout), a Blackout key joins the look keys, and
+  Live's ready check includes lighting (`readiness.ts`). Spotify and the timer drive the lights only through show moments,
+  so the show also runs with lights alone, music alone, or a timer alone.
 - **Still open:** question 5 below, and the Neo-Slim's real channel layout (run the channel tester on it).
 
 ## 7. Open questions

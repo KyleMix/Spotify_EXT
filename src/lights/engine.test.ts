@@ -125,6 +125,16 @@ describe('LightEngine: keys and editing', () => {
     expect(e.manualLookId).toBeNull();
     expect(e.handleKey('KeyQ')).toBe(false);
   });
+  it('the blackout key toggles blackout and takes the key off any look', () => {
+    const e = engine();
+    e.saveLook({ ...e.looks.find((l) => l.id === 'rainbow')!, key: 'F15' });
+    e.setBlackoutKey('F15');
+    expect(e.looks.find((l) => l.id === 'rainbow')?.key).toBeUndefined();
+    expect(e.handleKey('F15')).toBe(true);
+    expect(e.blackout).toBe(true);
+    e.handleKey('F15');
+    expect(e.blackout).toBe(false);
+  });
   it('a key belongs to one look at a time', () => {
     const e = engine();
     e.saveLook({ ...e.looks.find((l) => l.id === 'rainbow')!, key: 'F13' });

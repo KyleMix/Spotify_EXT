@@ -107,13 +107,19 @@ F13–F24 works well); keys Live mode already uses are refused. Starting looks: 
 Time's up, Warm wash, Rainbow, Blue chase, Beat chase, Ripple, Music meter, Bass / mid / treble (the music looks are
 added once to looks saved by earlier versions).
 
-**Console tab:** big buttons fire looks by hand. A fired look holds over the show until you click it again, fire another or
-press **Back to show** (which can have a key too). **Master dimmer** scales every look. A live preview shows each pod/par.
+**Running a show from Live mode:** the Stage screen has a **Lights** panel under the clock: what the lights are doing
+(e.g. *On stage → Stage white*), a live preview of every pod/par, the master dimmer, one-tap look buttons, **Back to show**
+and **Blackout** (*Hide* folds it away). Live's ready check also covers the lights: cable connected, rig problems,
+unconfirmed light types, blackout left on, and the microphone if a show cue uses a music look.
 
-**Show tab:** which look each moment fires while Live mode is open: *Walk-up*, *On stage*, *Light warning* (lasts
-*Light warning lasts* seconds, then back to On stage), *Time's up* (until the act ends), *Between acts* and *End of show*.
-Defaults: sound reactive for walk-ups and between acts, Stage white on stage, red flash at the warning, red pulse when time's
-up, rainbow at the end. In **Timer only** mode the Light warning and Time's up cues aren't used: the lights never go red. The **microphone** for music looks is here too
+**Console tab:** big buttons fire looks by hand. A fired look holds over the show until you click it again, fire another or
+press **Back to show**. *Back to show* and *Blackout* can each have a key too. **Master dimmer** scales every look. A live preview shows each pod/par.
+
+**Show tab:** which look each moment fires while Live mode is open: *Pre-show* (before the first walk-up), *Walk-up*,
+*On stage*, *Light warning* (lasts *Light warning lasts* seconds, then back to On stage), *Time's up* (until the act ends),
+*Walk-off* (while a walk-off song plays), *Between acts* and *End of show*. Defaults: warm wash before the show, sound
+reactive for walk-ups, walk-offs and between acts, Stage white on stage, red flash at the warning, red pulse when time's up,
+rainbow at the end. In **Timer only** mode the Light warning and Time's up cues aren't used: the lights never go red. The **microphone** for music looks is here too
 (start it after each reload). Its meter shows level, bass, mid, treble, a beat light and the gain. **Auto-adjust to the room**
 (on by default) follows the recent peak so quiet and loud rooms react alike; *Sound sensitivity* nudges it (5 = normal).
 Very quiet sound is ignored so room noise doesn't flicker the lights. With the mic off, music looks run a slow idle pattern. With Live mode closed, the lights are
