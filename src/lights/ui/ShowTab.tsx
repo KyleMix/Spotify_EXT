@@ -3,6 +3,7 @@ import type { LightEngine } from '../engine';
 import { MOMENTS } from '../looks';
 import type { Bands } from '../sound';
 import { useEngine } from './useEngine';
+import { loadSettings, saveSettings, type WarningMode } from '../../features/settings';
 
 /** Which look each moment of the show fires, the warning flash length, and the microphone for sound-reactive looks. */
 export function ShowTab({ engine }: { engine: LightEngine }) {
@@ -11,6 +12,11 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
   const [, force] = useState(0);
   const [bands, setBands] = useState<Bands | null>(null);
   const [mics, setMics] = useState<{ id: string; label: string }[]>([]);
+  // Shared with Live mode's Setup (only one of the two screens is open at a time, so storage keeps them in step).
+  const [warningMode, setWarningMode] = useState<WarningMode>(() => loadSettings().warningMode);
+  const chooseWarning = (m: WarningMode) => { setWarningMode(m); saveSettings({ ...loadSettings(), warningMode: m }); };
+  const timerOnly = warningMode === 'display';
+  const unused = (id: string) => timerOnly && (id === 'warning' || id === 'timeup');
   useEffect(() => mic.subscribe(() => force((n) => n + 1)), [mic]);
   useEffect(() => { void mic.devices().then(setMics); }, [mic, mic.status]);
   useEffect(() => {
@@ -26,33 +32,45 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
   return (
     <>
       <div className="card mb-3">
+        <h2 className="m-0">Time warning</h2>
+        <div className="seg mt-2" role="radiogroup" aria-label="Time warning mode">
+          <button role="radio" aria-checked={timerOnly} className={timerOnly ? 'on' : ''} onClick={() => chooseWarning('display')}>Timer only (no warning light)</button>
+          <button role="radio" aria-checked={!timerOnly} className={!timerOnly ? 'on' : ''} onClick={() => chooseWarning('light')}>Lights go red</button>
+        </div>
+        <p className="muted mt-2 mb-0">
+          {timerOnly
+            ? 'No warning light: the lights stay on the On stage look for the whole set, and the timer (Live mode and the comedian timer window) is the warning.'
+            : "The lights fire the Light warning look at each act's light-warning time and Time's up when the set length is reached."}
+          {' '}Same setting as Live → Setup → Time warning.
+        </p>
+      </div>
+
+      <div className="card mb-3">
         <h2 className="m-0">Show cues</h2>
         <p className="muted mt-2">While Live mode is open, each moment of the show fires a look. Firing a look by hand on the Console overrides this until you go back to the show.</p>
         <div className="cue-table">
           {MOMENTS.map((m) => (
-            <div key={m.id} className={`cue-row${engine.moment === m.id ? ' now' : ''}`}>
+            <div key={m.id} className={`cue-row${engine.moment === m.id ? ' now' : ''}${unused(m.id) ? ' unused' : ''}`}>
               <div>
                 <strong>{m.label}</strong>{engine.moment === m.id && <span className="pill ok ml-2">now</span>}
-                <div className="muted">{m.hint}</div>
+                <div className="muted">{unused(m.id) ? 'Not used: Timer only mode has no warning light.' : m.hint}</div>
               </div>
-              <select value={cues[m.id]} aria-label={`Look for ${m.label}`} onChange={(e) => engine.setCue(m.id, e.target.value)}>
+              <select value={cues[m.id]} aria-label={`Look for ${m.label}`} disabled={unused(m.id)} onChange={(e) => engine.setCue(m.id, e.target.value)}>
                 <option value="">Dark</option>
                 {looks.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
           ))}
         </div>
-        <div className="grid g3 mt-3">
-          <div>
-            <label>Light warning lasts (sec, 0 = until time's up)</label>
-            <input type="number" min={0} max={30} value={warnPulseSec} aria-label="Light warning length in seconds"
-              onChange={(e) => engine.setShowSettings({ warnPulseSec: e.target.value === '' ? 0 : Number(e.target.value) })} />
+        {!timerOnly && (
+          <div className="grid g3 mt-3">
+            <div>
+              <label>Light warning lasts (sec, 0 = until time's up)</label>
+              <input type="number" min={0} max={30} value={warnPulseSec} aria-label="Light warning length in seconds"
+                onChange={(e) => engine.setShowSettings({ warnPulseSec: e.target.value === '' ? 0 : Number(e.target.value) })} />
+            </div>
           </div>
-        </div>
-        <p className="muted mt-2 mb-0">
-          In Live mode's pop-out timer mode the Light warning and Time's up cues are skipped (the lights stay on the On stage look);
-          the timer window is the warning instead.
-        </p>
+        )}
       </div>
 
       <div className="card">

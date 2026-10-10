@@ -36,3 +36,26 @@ describe('parseMessage', () => {
     expect(parseMessage(null)).toBeNull();
   });
 });
+
+describe('timerView counting down', () => {
+  const down = (over: Partial<TimerSnapshot> = {}) => snap({ countDown: true, ...over });
+  it('starts at the set length and reaches 0:00 when time is up', () => {
+    expect(timerView(down({ phase: 'cued' }), 5).text).toBe('5:00');
+    expect(timerView(down(), 1_000_000).text).toBe('5:00');
+    expect(timerView(down(), 1_000_000 + 500).text).toBe('5:00');
+    expect(timerView(down(), 1_000_000 + 1_000).text).toBe('4:59');
+    expect(timerView(down(), 1_000_000 + 299_500).text).toBe('0:01');
+    expect(timerView(down(), 1_000_000 + 300_000).text).toBe('+0:00');
+  });
+  it('shows overtime as +m:ss in red', () => {
+    const v = timerView(down(), 1_000_000 + 312_000);
+    expect(v.text).toBe('+0:12');
+    expect(v.state).toBe('over');
+  });
+  it('carries the count direction through the channel, defaulting to up', () => {
+    const m = parseMessage({ type: 'state', snap: down() });
+    expect(m?.type === 'state' && m.snap.countDown).toBe(true);
+    const old = parseMessage({ type: 'state', snap: { ...snap(), countDown: undefined } });
+    expect(old?.type === 'state' && old.snap.countDown).toBe(false);
+  });
+});

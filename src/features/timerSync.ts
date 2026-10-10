@@ -1,4 +1,4 @@
-import { formatClock, timerStatus, type TimerState } from '../lib';
+import { clockText, idleClockText, timerStatus, type TimerState } from '../lib';
 
 /** The pop-out timer window listens on this channel; Live mode (the same origin) sends it the current act. */
 export const TIMER_CHANNEL = 'walkup.timer.v1';
@@ -18,6 +18,8 @@ export interface TimerSnapshot {
   position: string;
   /** Name of the following act, or ''. */
   next: string;
+  /** Count down from the set length instead of up from 0:00. */
+  countDown?: boolean;
 }
 
 export type TimerMessage = { type: 'state'; snap: TimerSnapshot } | { type: 'hello' } | { type: 'bye' };
@@ -40,12 +42,13 @@ export function parseMessage(raw: unknown): TimerMessage | null {
     snap: {
       phase: s.phase as TimerPhase, startedAt, setLengthMin, warnAtMin,
       name: String(s.name ?? ''), position: String(s.position ?? ''), next: String(s.next ?? ''),
+      countDown: s.countDown === true,
     },
   };
 }
 
 export interface TimerView {
-  /** The only thing on the comic's screen: how long they have been on stage, counting up from 0:00. */
+  /** The only thing on the comic's screen: time on stage (counting up) or time left (counting down). */
   text: string;
   state: TimerState;
 }
@@ -53,8 +56,8 @@ export interface TimerView {
 /** What the pop-out window shows for a snapshot at wall-clock time `now`. */
 export function timerView(snap: TimerSnapshot, now: number): TimerView {
   if (snap.phase === 'done') return { text: '', state: 'idle' }; // show over: a blank black screen
-  if (snap.phase !== 'timing') return { text: '0:00', state: 'idle' };
-  // Counts up and keeps going past the set length; the colour (yellow, then red) says when to wrap up.
+  if (snap.phase !== 'timing') return { text: idleClockText(snap.setLengthMin, !!snap.countDown), state: 'idle' };
+  // Keeps going past the set length; the colour (yellow, then red) says when to wrap up.
   const elapsed = Math.max(0, now - snap.startedAt);
-  return { text: formatClock(elapsed), state: timerStatus(elapsed, snap.setLengthMin, snap.warnAtMin).state };
+  return { text: clockText(elapsed, snap.setLengthMin, !!snap.countDown), state: timerStatus(elapsed, snap.setLengthMin, snap.warnAtMin).state };
 }

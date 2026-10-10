@@ -9,11 +9,14 @@ with a performance timer.
   walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
 - **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
   timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
-- **Pop-out comedian timer (no light):** Live → Setup → *Time warning* → **Pop-out timer** turns off the DMX warning
-  light and adds an *Open comedian timer window* button. The window shows nothing but a big clock of how long the comedian has
-  been on stage, counting up from 0:00, on a black background that never changes colour: the numbers are white, turn
-  yellow at the light-warning time, and turn red (still counting up) once their set length is reached. Drag it to the screen facing the stage
-  and double-click it for full screen. It mirrors Live mode in the same browser, so keep the main window open.
+- **Time warning: Timer only or Lights go red.** Live → Setup → *Time warning* (also on Lights → Show). **Timer only
+  (no warning light)** is for shows where the comedian just watches a timer: the lights stay on the On stage look for the
+  whole set. **Lights go red** fires the Light warning and Time's up looks.
+- **Timer counts up or down:** Live → Setup → *Timer counts*. *Up from 0:00* shows time on stage; *Down to 0:00* starts at the
+  set length, hits 0:00 when time is up and then shows overtime as `+0:12`. Applies to the Live clock and the timer window.
+- **Comedian timer window:** *Open comedian timer window* (Live, either mode) shows nothing but the big clock on a black
+  background: white numbers, yellow at the light-warning time, red once the set length is reached. Drag it to the screen
+  facing the stage and double-click for full screen. It mirrors Live mode in the same browser, so keep the main window open.
 - **Walk-off & closing song:** comedians can have a walk-off song that plays when you end their set
   (hosts and breaks never do). Each show can have an end-of-show song that plays on Next after the last act.
   Every song has its own start point and play length.
@@ -106,7 +109,7 @@ press **Back to show** (which can have a key too). **Master dimmer** scales ever
 **Show tab:** which look each moment fires while Live mode is open: *Walk-up*, *On stage*, *Light warning* (lasts
 *Light warning lasts* seconds, then back to On stage), *Time's up* (until the act ends), *Between acts* and *End of show*.
 Defaults: sound reactive for walk-ups and between acts, Stage white on stage, red flash at the warning, red pulse when time's
-up, rainbow at the end. In pop-out timer mode the lights never go red. The **microphone** for sound-reactive looks is here too
+up, rainbow at the end. In **Timer only** mode the Light warning and Time's up cues aren't used: the lights never go red. The **microphone** for sound-reactive looks is here too
 (start it after each reload; with it off, sound looks fade slowly through colors). With Live mode closed, the lights are
 dark unless you fire a look.
 

@@ -4,13 +4,19 @@ export interface AudioSettings {
   fadeOutMs: number;
   /** Start the comedian's timer automatically once the walk-up music has stopped. */
   autoStartTimer: boolean;
-  /** 'light' drives the DMX stage light; 'display' leaves the light off and uses the pop-out timer instead. */
+  /**
+   * How the comedian is warned: 'light' fires the Light warning / Time's up looks (the lights go red);
+   * 'display' is timer only: no warning light, the lights stay on the On stage look, the timer is the warning.
+   */
   warningMode: WarningMode;
+  /** Whether the stage clock and pop-out timer count up from 0:00 or down from the set length. */
+  timerCounts: TimerCounts;
 }
 
 export type WarningMode = 'light' | 'display';
+export type TimerCounts = 'up' | 'down';
 
-export const DEFAULT_SETTINGS: AudioSettings = { fadeOutMs: 4000, autoStartTimer: true, warningMode: 'light' };
+export const DEFAULT_SETTINGS: AudioSettings = { fadeOutMs: 4000, autoStartTimer: true, warningMode: 'light', timerCounts: 'up' };
 export const FADE_MIN_MS = 500;
 export const FADE_MAX_MS = 10_000;
 
@@ -23,7 +29,10 @@ export function loadSettings(): AudioSettings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? 'null');
     if (raw && typeof raw.fadeOutMs === 'number') {
-      return { fadeOutMs: clampFade(raw.fadeOutMs), autoStartTimer: raw.autoStartTimer !== false, warningMode: raw.warningMode === 'display' ? 'display' : 'light' };
+      return {
+        fadeOutMs: clampFade(raw.fadeOutMs), autoStartTimer: raw.autoStartTimer !== false,
+        warningMode: raw.warningMode === 'display' ? 'display' : 'light', timerCounts: raw.timerCounts === 'down' ? 'down' : 'up',
+      };
     }
   } catch { /* defaults */ }
   return DEFAULT_SETTINGS;
