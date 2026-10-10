@@ -77,8 +77,15 @@ Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://
    from your start address. When a channel makes red, press *This channel is: Red* (same for green, blue and a dimmer
    if the mode has one). Press `SETUP` on the light to see its channel mode (like `Ch.04`), and press `MODE` to a
    built-in static color to check that the light's red and green LEDs work at all.
-4. If the light flickers on a long cable, add a 120 Ω DMX terminator plug in the light's **DMX OUT**.
-Settings are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
+4. **More lights (daisy chain):** run a DMX cable from the first light's **DMX OUT** into the next light's **DMX IN**.
+   In the panel, pick the light type and press **Add light to chain**: it gets the first free address after the lights
+   already on the chain (shown as e.g. `d004`). Set that address on the light itself. Every light turns red together.
+   Each light has its own channel numbers and its own **Find channels** button; the panel warns if two lights' channels overlap.
+   - **Chauvet 4BAR Flex:** choose *Chauvet 4BAR Flex (3-CH mode)*, then on the bar's menu set the DMX personality to
+     **3-CH** (all four pars together: 1 red, 2 green, 3 blue) and its address to the one the panel shows. Its 15-CH mode
+     also works if you set the channels yourself (*Channels in mode* 15, and use *Find channels*).
+5. If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
+Settings (including older single-light settings, which become the first light on the chain) are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
 "Light offline".
 
 ## Setup

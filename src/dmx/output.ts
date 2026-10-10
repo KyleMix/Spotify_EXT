@@ -1,4 +1,7 @@
-import { buildFrame, buildProbeFrame, loadDmxConfig, OFF, saveDmxConfig, clampDmxConfig, type DmxConfig, type LightColor } from './frame';
+import {
+  buildFrame, buildProbeFrame, loadDmxConfig, OFF, saveDmxConfig, clampDmxConfig, nextFreeAddress, MAX_FIXTURES,
+  type DmxConfig, type DmxFixture, type LightColor,
+} from './frame';
 
 /* Minimal Web Serial typings (not in TypeScript's DOM lib). */
 interface SerialPortLike {
@@ -36,6 +39,8 @@ export class DmxOutput {
   private showColor: LightColor = OFF;
   private testColor: LightColor | null = null;
   private probeValues: Record<number, number> | null = null;
+  /** Which light on the chain the channel finder is driving. */
+  probeFixture = 0;
   private probeTimer?: ReturnType<typeof setTimeout>;
   private testTimer?: ReturnType<typeof setTimeout>;
   private listeners = new Set<() => void>();
@@ -47,6 +52,25 @@ export class DmxOutput {
     this.config = clampDmxConfig({ ...this.config, ...c });
     saveDmxConfig(this.config);
     this.listeners.forEach((f) => f());
+  }
+
+  /** Change one light on the chain. */
+  updateFixture(index: number, patch: Partial<DmxFixture>) {
+    this.setConfig({ fixtures: this.config.fixtures.map((f, i) => (i === index ? { ...f, ...patch } : f)) });
+  }
+
+  /** Add a light to the end of the chain, at the first address after the lights already on it. */
+  addFixture(fixture: Omit<DmxFixture, 'address'>) {
+    if (this.config.fixtures.length >= MAX_FIXTURES) return;
+    const address = nextFreeAddress(this.config.fixtures, fixture.channels);
+    this.setConfig({ fixtures: [...this.config.fixtures, { ...fixture, address }] });
+  }
+
+  /** Take a light off the chain. At least one light always stays configured. */
+  removeFixture(index: number) {
+    if (this.config.fixtures.length <= 1) return;
+    if (this.probing) this.stopProbe();
+    this.setConfig({ fixtures: this.config.fixtures.filter((_, i) => i !== index) });
   }
 
   /** Color requested by the show (red at the light warning, off otherwise). */
@@ -65,14 +89,16 @@ export class DmxOutput {
   get probing() { return this.probeValues !== null; }
 
   /**
-   * Channel finder: light only the given fixture channels (1 = the start address) at the given levels,
-   * so you can see what each channel of the light's current mode does. Stops by itself after 30 s.
+   * Channel finder: light only the given channels of one light (1 = its start address) at the given levels,
+   * so you can see what each channel of the light's current mode does. Every other light stays dark.
+   * Stops by itself after 30 s.
    */
-  probe(values: Record<number, number>, ms = 30000) {
+  probe(values: Record<number, number>, fixtureIndex = this.probeFixture, ms = 30000) {
     clearTimeout(this.testTimer);
     this.testColor = null;
     clearTimeout(this.probeTimer);
     this.probeValues = values;
+    this.probeFixture = Math.min(Math.max(0, fixtureIndex), this.config.fixtures.length - 1);
     this.probeTimer = setTimeout(() => this.stopProbe(), ms);
     this.listeners.forEach((f) => f());
   }
@@ -129,7 +155,7 @@ export class DmxOutput {
     try {
       while (this.running && this.port === port) {
         const frame = this.probeValues
-          ? buildProbeFrame(this.config, this.probeValues)
+          ? buildProbeFrame(this.config.fixtures[this.probeFixture] ?? this.config.fixtures[0], this.probeValues)
           : buildFrame(this.config, this.testColor ?? this.showColor);
         await port.setSignals({ break: true });   // BREAK: line held low (at least 88 microseconds)
         await sleep(2);
