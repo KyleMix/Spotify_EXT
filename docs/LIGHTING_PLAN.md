@@ -190,7 +190,7 @@ The show screens (lineup, timer, Spotify) come back in Phase 4. Each moment of t
 - For each light: the mode it's in and its address, as read on the light itself.
 - With the Phase 1 tester, map every channel of the Neo-Slim, and settle whether pars 3–4 are a hardware fault.
 
-### Phase 1: Engine core, Rig tab and Tools
+### Phase 1: Engine core, Rig tab and Tools ✅ built (needs confirming on the real rig)
 Profiles, patch, universe buffer, worker output driver, universe monitor, fixture tester, rig check. Existing
 saved lights migrate into the new patch.
 **Done when:** both bars can be addressed with no overlap, every pod of each can be set to any color from the
@@ -211,7 +211,14 @@ Spotify move to sit around the lighting screens.
 
 ---
 
-## 6. Open questions
+## 6. Status
+- **Answered:** the rig is just the two bars; the 4BAR Flex runs in 15-CH mode.
+- **Phase 1 is in `src/lights/`:** `profiles.ts` (light library), `patch.ts` (rig, checks, DIP helper, migration),
+  `render.ts` (looks → channel values, rig check), `drivers.ts` / `session.ts` / `dmx.worker.ts` / `link.ts` (output
+  with worker and page fallback), `engine.ts` (priorities, tester, rig check, show hooks), `ui/` (Lights screen).
+- **Still open:** questions 1, 4 and 5 below, and the Neo-Slim's real channel layout (run the channel tester on it).
+
+## 7. Open questions
 1. Which USB-DMX cable is it (brand/model)?
 2. Is there a third light (a red warning light), or just the two bars?
 3. OK to run the 4BAR Flex in **15-CH** mode for per-pod control?

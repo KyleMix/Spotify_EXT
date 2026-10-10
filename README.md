@@ -9,7 +9,7 @@ with a performance timer.
   walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
 - **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
   timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
-- **Pop-out comedian timer (no light):** Live → Setup → *Time warning* → **Pop-out timer** turns off the DMX stage
+- **Pop-out comedian timer (no light):** Live → Setup → *Time warning* → **Pop-out timer** turns off the DMX warning
   light and adds an *Open comedian timer window* button. The window shows nothing but a big clock of how long the comedian has
   been on stage, counting up from 0:00, on a black background that never changes colour: the numbers are white, turn
   yellow at the light-warning time, and turn red (still counting up) once their set length is reached. Drag it to the screen facing the stage
@@ -63,43 +63,43 @@ with a performance timer.
   walk-off with start point and length, notes, end-of-show song). Use your browser's print dialog to save it as a PDF.
 - **Theme:** the top-bar button cycles Dark → Light → Auto (follows your device). Search results have a *Show more results* button.
 
-## Stage light (DMX)
-Live mode can drive a DMX light: it **flashes red for a few seconds at each act's light-warning time** (3 seconds by
-default; change it with *Warning flash*, or set 0 to stay on), goes off, then **turns red when time is up and stays on until
-the next comedian**. It is off the rest of the time. It uses a USB-to-DMX cable with an FTDI chip (an "Open DMX" style cable, e.g. DSD TECH SH-RS09B) and
-Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://127.0.0.1:5173` or an HTTPS site.
-1. Plug the cable into the PC and into the light's **DMX IN**. Set the light's DMX address (the `d001` on its display).
-2. In Live mode, open **Stage light (DMX)**, click **Connect light** and pick the cable's serial port
-   (usually named *USB Serial Port (COMx)*). Later visits reconnect automatically.
-3. Set **Start address** to the light's address. Press **Test red / green / blue** and adjust the channel numbers until the
-   colors match. If a test shows nothing, the light's mode may have a **dimmer** channel: enter its number.
-   **Wrong color or nothing for some colors?** Use the **Channel finder** in the same card: it lights one channel at a time
-   from your start address. When a channel makes red, press *This channel is: Red* (same for green, blue and a dimmer
-   if the mode has one). Press `SETUP` on the light to see its channel mode (like `Ch.04`), and press `MODE` to a
-   built-in static color to check that the light's red and green LEDs work at all.
-4. **More lights (daisy chain):** run a DMX cable from the first light's **DMX OUT** into the next light's **DMX IN**.
-   In the panel, pick the light type and press **Add light to chain**: it gets the first free address after the lights
-   already on the chain (shown as e.g. `d004`). Set that address on the light itself. Every light turns red together.
-   Each light has its own channel numbers and its own **Find channels** button; the panel warns if two lights' channels overlap.
-   - **Chauvet 4BAR Flex:** choose *Chauvet 4BAR Flex (3-CH mode)*, then on the bar's menu set the DMX personality to
-     **3-CH** (all four pars together: 1 red, 2 green, 3 blue) and its address to the one the panel shows. Its 15-CH mode
-     also works if you set the channels yourself (*Channels in mode* 15, and use *Find channels*).
-   - **Irradiant Neo-Slim Par Bar 48 (NPRO-PAR-SL-BAR-48):** choose *Irradiant Neo-Slim Par Bar 48 (12-CH mode)* and set
-     the bar to its **12-channel** DMX mode. That preset assumes each of the 4 pars gets red, green, blue in turn
-     (1-3, 4-6, 7-9, 10-12). If only some pars light or a color is off, use *Find channels* and adjust
-     *Pars with own RGB* / *Channels per par*.
-   - **Bars with several pars:** *Pars with own RGB* is how many pars have their own red/green/blue channels (1 = the
-     mode drives the whole bar as one), and *Channels per par* is the gap from one par's red to the next par's red.
-5. **Stage lights (white during sets, sound-reactive between):** set a light's **Role** to *Stage light* (the 4BAR Flex
-   preset does this). While a comedian is on the clock it shows white (set the level with *White level during a set*).
-   The rest of the show (walk-up music, walk-off music, between acts, the closing song) it follows the room sound:
-   press **🎤 Start microphone** in the *Stage lights* box, allow the mic, and pick which mic if the PC has more than one.
-   Each beat jumps to a new color and louder sound is brighter; turn *Sound sensitivity* up for a quiet room or a far mic,
-   down if it never settles. With the mic off, stage lights slowly fade through colors instead. The mic has to be started
-   again after reloading the page. Warning lights keep doing the red time cue (or stay off in pop-out timer mode).
-6. If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
-Settings (including older single-light settings, which become the first light on the chain) are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
-"Light offline".
+## Lights (DMX)
+The **Lights** tab (the first tab) sets up, tests and controls DMX lights. It needs **Chrome or Edge** on a computer
+(Web Serial), on `http://127.0.0.1:5173` or an HTTPS site. See `docs/LIGHTING_PLAN.md` for the design and roadmap.
+
+**Connecting:** pick the cable type (*Open DMX (FTDI) cable*, e.g. DSD TECH SH-RS09B, or a *DMX USB Pro-style
+interface*), click **Connect lights** and choose the cable's serial port. Later visits reconnect automatically. The bar
+shows frames per second (below 20 can flicker) and whether frames are sent from a background worker or the page.
+**Blackout** turns every light dark until pressed again.
+
+**Rig tab:** the lights on the chain.
+1. Cable the computer into the first light's **DMX IN**, its **DMX OUT** into the next light's **DMX IN**, and so on. The cable
+   order doesn't matter; each light only listens to its own channels, so ranges must not overlap (the tab warns if they do).
+2. **Add a light:** pick its type and DMX mode, then **Add to the chain**. It gets the first free address. Each light shows how
+   to set that address on the light itself: the display reading (`d016`) or a picture of which **DIP switches** go on.
+3. Built-in types: **Chauvet 4BAR Flex** in **15-CH** (each pod its own color; the app holds channel 1 at 0 so the bar stays in
+   DMX color mode, the dimmer at full and strobe off) or **3-CH** (whole bar one color); **Irradiant Neo-Slim Par Bar 48**
+   in 12-CH (layout *assumed*, confirm it with the tester); generic RGB and dimmer + RGB lights.
+4. **Custom light types:** for lights not in the list or whose channels differ from the manual. Describe each channel
+   (red/green/blue/white/amber with its pixel, dimmer, strobe, mode/control with the value to hold). *Copy and edit this type*
+   starts from a built-in one. Lights saved by older versions of the app are moved over automatically.
+5. **Role:** *Stage light* (white during sets, sound-reactive between acts) or *Warning light* (the red time cue).
+
+**Tools tab:**
+- **Rig check:** steps every pod/par of every light through red, green, blue and white with everything else dark, naming each
+  step (e.g. *Neo-Slim · Par 3 of 4 · blue*). Run it before every show.
+- **Channel tester:** a slider per channel of one light. **Step through channels** puts one channel at full with the rest at
+  their home values, the quickest way to learn an unknown light. *Other lights dark while testing* is on by default.
+- **Universe monitor:** the live value of every DMX channel, colored by which light owns it.
+
+**Show tab:** stage lights are white while a comedian is on the clock (*White level during a set*) and follow the microphone
+the rest of the show: press **🎤 Start microphone** (pick the mic if there are several; it must be restarted after a reload),
+adjust *Sound sensitivity*. With the mic off they fade slowly through colors. Warning lights flash red for *Warning flash*
+seconds at each act's light-warning time, then turn red when time is up until the next act (off in pop-out timer mode).
+Lights only follow the show while Live mode is open.
+
+If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
+If the cable is unplugged mid-show, the timer keeps working and the bar shows "Lights offline".
 
 ## Setup
 1. Create an app at https://developer.spotify.com/dashboard. Add redirect URI

@@ -8,19 +8,22 @@ import {
 } from './clicker';
 import { TestRun } from './TestRun';
 import { RemotePanel } from './RemotePanel';
-import type { DmxOutput } from '../dmx/output';
-import { DmxPanel } from '../dmx/DmxPanel';
-import { lightIsOn, OFF, RED } from '../dmx/frame';
+import type { LightEngine } from '../lights/engine';
+import { ConnectionBar } from '../lights/ui/LightsScreen';
+import { lightIsOn } from '../lights/show';
+import { OFF, RED } from '../lights/color';
 import { TIMER_CHANNEL, TIMER_WINDOW_NAME, parseMessage, type TimerSnapshot } from './timerSync';
 import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
 
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
 
-export function Live({ show, player, ready, dmx, resize, unplayable }: {
+export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLights }: {
+  /** Switch to the Lights screen. */
+  onOpenLights: () => void;
   /** Songs the last "Check songs" run found unavailable. */
   unplayable: string[];
-  show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: DmxOutput;
+  show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: LightEngine;
   /** Grow/shrink the comedian list; slots before `keepFrom` are protected. */
   resize: (count: number, keepFrom: number) => void;
 }) {
@@ -88,7 +91,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
   const elapsed = phase === 'timing' ? now - startedAt : 0;
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
   // Stage light: a short red flash at the light-warning time, then solid red once time is up until the next act.
-  const lightRed = slot ? lightIsOn(phase, elapsed, slot.setLengthMin, slot.warnAtMin, dmx.config.warnPulseSec) : false;
+  const lightRed = slot ? lightIsOn(phase, elapsed, slot.setLengthMin, slot.warnAtMin, dmx.show.warnPulseSec) : false;
   // In pop-out display mode the DMX light stays off; the comedian watches the second-screen timer instead.
   const lightMode = settings.warningMode === 'light';
   useEffect(() => { dmx.setShowColor(lightRed && lightMode ? RED : OFF); }, [dmx, lightRed, lightMode]);
@@ -410,7 +413,19 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
           </>
         )}
       </div>
-      <DmxPanel dmx={dmx} warningLightsOn={lightMode} />
+      <div className="card">
+        <div className="row wrap">
+          <h2 className="m-0">Lights</h2>
+          <div className="spacer" />
+          <button className="mini" onClick={onOpenLights}>Open Lights screen</button>
+        </div>
+        <p className="muted mt-2">
+          Stage lights go white while a comedian is on the clock and follow the microphone between acts.
+          {lightMode ? ' Warning lights do the red time cue.' : ' Warning lights stay off: the pop-out timer is the time warning.'}
+          {' '}Set up the rig, test channels and start the microphone on the Lights screen.
+        </p>
+        <ConnectionBar engine={dmx} />
+      </div>
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
       </div>

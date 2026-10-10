@@ -1,5 +1,5 @@
 /** Sound-to-light: turns what the microphone hears into a color for the stage lights. */
-import type { LightColor } from './frame';
+import type { LightColor } from './color';
 
 /** Loudness per frequency band, 0-1. */
 export interface Bands { bass: number; mid: number; treble: number; level: number }
