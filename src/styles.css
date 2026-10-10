@@ -252,6 +252,9 @@ body.dragging-song .songcard.dropzone{animation:breathe 1.2s ease-in-out infinit
 .bar{height:8px;background:var(--panel3);border-radius:99px;overflow:hidden;max-width:640px;margin:0 auto var(--s5)}
 .bar>i{display:block;height:100%;background:var(--ok);transition:width .3s linear}
 .bar.warn>i{background:var(--warn)}.bar.over>i{background:var(--danger)}
+.meter{height:8px;background:var(--panel3);border-radius:99px;overflow:hidden;max-width:420px}
+.meter>i{display:block;height:100%;background:var(--ok);transition:width .08s linear}
+.swatch{display:inline-block;width:28px;height:18px;border-radius:4px;border:1px solid var(--line-strong)}
 .controls{display:flex;gap:var(--s3);justify-content:center;flex-wrap:wrap}
 .controls button{padding:var(--s4) var(--s6);font-size:var(--fs-lg);border-radius:var(--r-lg);min-height:56px}
 .controls button.primary{min-width:200px;box-shadow:0 0 0 0 var(--accent-soft)}

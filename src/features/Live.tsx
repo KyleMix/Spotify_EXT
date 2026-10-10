@@ -93,6 +93,11 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
   const lightMode = settings.warningMode === 'light';
   useEffect(() => { dmx.setShowColor(lightRed && lightMode ? RED : OFF); }, [dmx, lightRed, lightMode]);
   useEffect(() => () => dmx.setShowColor(OFF), [dmx]);
+  // Stage lights: white while an act is on the clock; the rest of the show (walk-ups, walk-offs, between acts,
+  // closing song) they follow the microphone.
+  const stageMode = !done && phase === 'timing' ? 'white' : 'sound';
+  useEffect(() => { dmx.setStageMode(stageMode); }, [dmx, stageMode]);
+  useEffect(() => () => dmx.setStageMode('off'), [dmx]);
 
   // Mirror the current act to the pop-out timer window (same browser, any number of copies).
   const snap: TimerSnapshot = {
@@ -405,7 +410,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable }: {
           </>
         )}
       </div>
-      {lightMode && <DmxPanel dmx={dmx} />}
+      <DmxPanel dmx={dmx} warningLightsOn={lightMode} />
       <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
       </div>

@@ -77,8 +77,28 @@ Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://
    from your start address. When a channel makes red, press *This channel is: Red* (same for green, blue and a dimmer
    if the mode has one). Press `SETUP` on the light to see its channel mode (like `Ch.04`), and press `MODE` to a
    built-in static color to check that the light's red and green LEDs work at all.
-4. If the light flickers on a long cable, add a 120 Ω DMX terminator plug in the light's **DMX OUT**.
-Settings are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
+4. **More lights (daisy chain):** run a DMX cable from the first light's **DMX OUT** into the next light's **DMX IN**.
+   In the panel, pick the light type and press **Add light to chain**: it gets the first free address after the lights
+   already on the chain (shown as e.g. `d004`). Set that address on the light itself. Every light turns red together.
+   Each light has its own channel numbers and its own **Find channels** button; the panel warns if two lights' channels overlap.
+   - **Chauvet 4BAR Flex:** choose *Chauvet 4BAR Flex (3-CH mode)*, then on the bar's menu set the DMX personality to
+     **3-CH** (all four pars together: 1 red, 2 green, 3 blue) and its address to the one the panel shows. Its 15-CH mode
+     also works if you set the channels yourself (*Channels in mode* 15, and use *Find channels*).
+   - **Irradiant Neo-Slim Par Bar 48 (NPRO-PAR-SL-BAR-48):** choose *Irradiant Neo-Slim Par Bar 48 (12-CH mode)* and set
+     the bar to its **12-channel** DMX mode. That preset assumes each of the 4 pars gets red, green, blue in turn
+     (1-3, 4-6, 7-9, 10-12). If only some pars light or a color is off, use *Find channels* and adjust
+     *Pars with own RGB* / *Channels per par*.
+   - **Bars with several pars:** *Pars with own RGB* is how many pars have their own red/green/blue channels (1 = the
+     mode drives the whole bar as one), and *Channels per par* is the gap from one par's red to the next par's red.
+5. **Stage lights (white during sets, sound-reactive between):** set a light's **Role** to *Stage light* (the 4BAR Flex
+   preset does this). While a comedian is on the clock it shows white (set the level with *White level during a set*).
+   The rest of the show (walk-up music, walk-off music, between acts, the closing song) it follows the room sound:
+   press **🎤 Start microphone** in the *Stage lights* box, allow the mic, and pick which mic if the PC has more than one.
+   Each beat jumps to a new color and louder sound is brighter; turn *Sound sensitivity* up for a quiet room or a far mic,
+   down if it never settles. With the mic off, stage lights slowly fade through colors instead. The mic has to be started
+   again after reloading the page. Warning lights keep doing the red time cue (or stay off in pop-out timer mode).
+6. If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
+Settings (including older single-light settings, which become the first light on the chain) are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
 "Light offline".
 
 ## Setup
