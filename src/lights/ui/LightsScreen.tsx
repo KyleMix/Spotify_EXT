@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { LightEngine } from '../engine';
 import { DRIVERS, type DriverId } from '../drivers';
+import { BLUE, GREEN, OFF, RED, WHITE } from '../color';
 import { useEngine } from './useEngine';
 import { RigTab } from './RigTab';
 import { ToolsTab } from './ToolsTab';
@@ -49,6 +50,19 @@ export function ConnectionBar({ engine }: { engine: LightEngine }) {
         </button>
       </div>
       {engine.message && <p className={`mb-0 mt-2 ${engine.status === 'error' ? 'text-danger' : 'muted'}`}>{engine.message}</p>}
+      <div className="row wrap gap-2 mt-2">
+        <span className="muted">Test every light (4 s):</span>
+        {([['Red', RED], ['Green', GREEN], ['Blue', BLUE], ['White', WHITE]] as const).map(([name, c]) => (
+          <button key={name} className="mini" disabled={!connected} onClick={() => engine.test(c)}>{name}</button>
+        ))}
+        <button className="mini" disabled={!connected} onClick={() => engine.test(OFF)}>Off</button>
+        <div className="spacer" />
+        <label className="check" title="Sends frames from a background thread so a busy page can't stall them. Turn off if the lights stay dark.">
+          <input type="checkbox" checked={engine.useWorker} disabled={connected || engine.status === 'connecting'}
+            onChange={(e) => engine.setUseWorker(e.target.checked)} />
+          <span className="muted">Background sending (experimental)</span>
+        </label>
+      </div>
     </div>
   );
 }

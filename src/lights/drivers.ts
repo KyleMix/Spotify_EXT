@@ -50,7 +50,7 @@ export const portOptions = (driver: DriverId) => driver === 'enttec'
   ? { baudRate: 57600, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none' }
   : { baudRate: 250000, dataBits: 8, stopBits: 2, parity: 'none', flowControl: 'none', bufferSize: 1024 };
 
-export const FRAME_INTERVAL_MS = 25; // about 40 frames per second, well inside what DMX fixtures expect
+export const FRAME_INTERVAL_MS = 30; // about 30 frames per second: the timing proven with Open DMX cables
 
 /** Time a frame takes on the wire: 11 bits per byte (start, 8 data, 2 stop) at 250 kbit/s = 44 µs, plus 1 ms margin. */
 export const transmitMs = (bytes: number) => Math.ceil(bytes * 0.044) + 1;
@@ -82,9 +82,11 @@ export async function runOutputLoop(port: SerialPortLike, driver: DriverId, hook
         await writer.write(enttecPacket(universe, slots));
       } else {
         const frame = openDmxFrame(universe, slots);
-        await port.setSignals({ break: true });   // BREAK: at least 88 microseconds; a millisecond or so here
-        await sleep(1);
+        // Same timing as the original single-light version, which is proven on the DSD TECH SH-RS09B.
+        await port.setSignals({ break: true });   // BREAK: line held low (at least 88 microseconds; 2 ms here)
+        await sleep(2);
         await port.setSignals({ break: false });  // mark-after-break
+        await sleep(1);
         await writer.write(frame);
         // write() can resolve while bytes are still going out; the next BREAK must not cut this frame short.
         txMs = transmitMs(frame.length);
