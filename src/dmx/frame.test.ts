@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildProbeFrame, buildFrame, clampDmxConfig, clampFixture, DEFAULT_DMX_CONFIG, DEFAULT_FIXTURE, FIXTURE_PRESETS, GREEN, lightIsOn,
-  MAX_FIXTURES, nextFreeAddress, OFF, overlaps, RED, slotOf, WHITE, whiteAt, type DmxFixture,
+  MAX_FIXTURES, footprint, nextFreeAddress, OFF, overlaps, RED, slotOf, WHITE, whiteAt, type DmxFixture,
 } from './frame';
 
 const fx = (o: Partial<DmxFixture> = {}): DmxFixture => ({ ...DEFAULT_FIXTURE, ...o });
@@ -42,6 +42,15 @@ describe('buildFrame', () => {
     expect(Array.from(f.slice(1, 7))).toEqual([255, 0, 0, 255, 255, 255]);
     const g = buildFrame(cfg, OFF, GREEN);
     expect(Array.from(g.slice(1, 7))).toEqual([0, 0, 0, 0, 255, 0]);
+  });
+  it('lights every par of a bar whose mode gives each par its own RGB', () => {
+    // Neo-Slim Par Bar in 12-CH mode at d004: pars at 4-6, 7-9, 10-12, 13-15.
+    const neo = FIXTURE_PRESETS.find((x) => x.id === 'neo-slim-bar-12ch')!.fixture;
+    const cfg = cfgOf(fx(), { ...neo, address: 4 });
+    const f = buildFrame(cfg, OFF, RED);
+    expect(Array.from(f.slice(4, 16))).toEqual([255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0]);
+    expect(f[16]).toBe(0);
+    expect([f[1], f[2], f[3]]).toEqual([0, 0, 0]);
   });
   it('whiteAt scales all three colors', () => {
     expect(whiteAt(50)).toEqual({ r: 128, g: 128, b: 128 });
@@ -90,6 +99,20 @@ describe('clampDmxConfig', () => {
     const c = clampDmxConfig({ fixtures: [fx(), fx({ address: 4, name: '4BAR' })] });
     expect(c.fixtures.map((f) => f.address)).toEqual([1, 4]);
     expect(clampDmxConfig({ fixtures: Array.from({ length: 40 }, () => fx()) }).fixtures).toHaveLength(MAX_FIXTURES);
+  });
+});
+
+describe('multi-par bars', () => {
+  it('counts every par in the footprint', () => {
+    expect(footprint(fx({ heads: 4, headSpacing: 3 }))).toBe(12);
+    expect(footprint(fx({ heads: 4, headSpacing: 4, red: 2, green: 3, blue: 4 }))).toBe(16);
+  });
+  it('defaults par spacing to right after the first par, and keeps old single lights as one par', () => {
+    expect(clampFixture({ red: 1, green: 2, blue: 3, heads: 4 }).headSpacing).toBe(3);
+    expect(clampFixture({ address: 1 })).toMatchObject({ heads: 1 });
+  });
+  it('places a light after a whole multi-par bar', () => {
+    expect(nextFreeAddress([fx(), fx({ address: 4, heads: 4, headSpacing: 3, channels: 12 })], 3)).toBe(16);
   });
 });
 

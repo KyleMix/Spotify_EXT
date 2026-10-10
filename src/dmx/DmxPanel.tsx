@@ -3,7 +3,8 @@ import type { DmxOutput } from './output';
 import type { Bands } from './sound';
 import { BLUE, FIXTURE_PRESETS, GREEN, MAX_FIXTURES, OFF, RED, WHITE, footprint, overlaps, type DmxFixture, type FixtureRole } from './frame';
 
-const MAX_PROBE = 16;
+/** The channel finder steps through at least 16 channels, or the light's whole mode if it is bigger. */
+const probeLimit = (f?: DmxFixture) => Math.min(64, Math.max(16, f ? footprint(f) : 16));
 
 const FIELDS: { key: Exclude<keyof DmxFixture, 'name' | 'role'>; label: string; min: number; max: number }[] = [
   { key: 'address', label: 'Start address', min: 1, max: 512 },
@@ -11,7 +12,9 @@ const FIELDS: { key: Exclude<keyof DmxFixture, 'name' | 'role'>; label: string; 
   { key: 'green', label: 'Green channel', min: 1, max: 32 },
   { key: 'blue', label: 'Blue channel', min: 1, max: 32 },
   { key: 'dimmer', label: 'Dimmer channel (0 = none)', min: 0, max: 32 },
-  { key: 'channels', label: 'Channels in mode', min: 1, max: 32 },
+  { key: 'channels', label: 'Channels in mode', min: 1, max: 128 },
+  { key: 'heads', label: 'Pars with own RGB (1 = all together)', min: 1, max: 16 },
+  { key: 'headSpacing', label: 'Channels per par', min: 1, max: 32 },
 ];
 
 const pad3 = (n: number) => String(n).padStart(3, '0');
@@ -106,7 +109,7 @@ export function DmxPanel({ dmx, warningLightsOn = true }: { dmx: DmxOutput; warn
   const clash = overlaps(fixtures);
 
   const lightChannel = (fixture: number, n: number) => {
-    const c = Math.min(MAX_PROBE, Math.max(1, n)); setCh(c); setNote(''); dmx.probe({ [c]: 255 }, fixture);
+    const c = Math.min(probeLimit(fixtures[fixture]), Math.max(1, n)); setCh(c); setNote(''); dmx.probe({ [c]: 255 }, fixture);
   };
   const assign = (key: 'red' | 'green' | 'blue' | 'dimmer', label: string) => {
     dmx.updateFixture(finderOn, { [key]: ch });
@@ -204,10 +207,10 @@ export function DmxPanel({ dmx, warningLightsOn = true }: { dmx: DmxOutput; warn
               <div className="row wrap gap-2">
                 <button className="mini" disabled={ch <= 1} onClick={() => lightChannel(i, ch - 1)} aria-label="Previous channel">◀ Prev</button>
                 <strong className="minw-90" role="status">Channel {ch}</strong>
-                <button className="mini" disabled={ch >= MAX_PROBE} onClick={() => lightChannel(i, ch + 1)} aria-label="Next channel">Next ▶</button>
+                <button className="mini" disabled={ch >= probeLimit(f)} onClick={() => lightChannel(i, ch + 1)} aria-label="Next channel">Next ▶</button>
                 <button className="mini" onClick={() => { dmx.stopProbe(); setNote(''); }}>Stop</button>
-                <button className="mini" title="Raises channels 1-16 together; some modes strobe or run programs"
-                  onClick={() => { setNote('All channels full. Some modes flash; press Stop if that bothers you.'); dmx.probe(Object.fromEntries(Array.from({ length: MAX_PROBE }, (_, k) => [k + 1, 255])), i); }}>
+                <button className="mini" title="Raises every channel of this light together; some modes strobe or run programs"
+                  onClick={() => { setNote('All channels full. Some modes flash; press Stop if that bothers you.'); dmx.probe(Object.fromEntries(Array.from({ length: probeLimit(f) }, (_, k) => [k + 1, 255])), i); }}>
                   All channels full</button>
               </div>
               <div className="row wrap gap-2 mt-2">

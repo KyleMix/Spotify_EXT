@@ -20,6 +20,12 @@ export interface DmxFixture {
   blue: number;
   /** Master dimmer channel within the fixture, or 0 if the mode has none. Held at full while lit. */
   dimmer: number;
+  /**
+   * Bars with several pars whose mode gives each par its own red, green and blue: how many pars, and how many
+   * channels from one par's red to the next par's red. Red/green/blue above are the first par's channels.
+   */
+  heads: number;
+  headSpacing: number;
   /** How many channels the light's mode uses (its footprint), so lights on the chain don't overlap. */
   channels: number;
 }
@@ -46,7 +52,7 @@ export const GREEN: LightColor = { r: 0, g: 255, b: 0 };
 export const BLUE: LightColor = { r: 0, g: 0, b: 255 };
 export const WHITE: LightColor = { r: 255, g: 255, b: 255 };
 
-export const DEFAULT_FIXTURE: DmxFixture = { name: 'Warning light', role: 'warning', address: 1, red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 };
+export const DEFAULT_FIXTURE: DmxFixture = { name: 'Warning light', role: 'warning', address: 1, red: 1, green: 2, blue: 3, dimmer: 0, heads: 1, headSpacing: 3, channels: 3 };
 
 export interface FixturePreset { id: string; label: string; fixture: Omit<DmxFixture, 'address'>; hint: string }
 
@@ -55,19 +61,25 @@ export const FIXTURE_PRESETS: FixturePreset[] = [
   {
     id: '4bar-flex-3ch',
     label: 'Chauvet 4BAR Flex (3-CH mode)',
-    fixture: { name: 'Chauvet 4BAR Flex', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 },
+    fixture: { name: 'Chauvet 4BAR Flex', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, heads: 1, headSpacing: 3, channels: 3 },
     hint: 'On the 4BAR Flex, set the DMX personality to 3-CH (all four pars together: 1 red, 2 green, 3 blue) and set its address to the one shown here.',
+  },
+  {
+    id: 'neo-slim-bar-12ch',
+    label: 'Irradiant Neo-Slim Par Bar 48 (12-CH mode)',
+    fixture: { name: 'Neo-Slim Par Bar', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, heads: 4, headSpacing: 3, channels: 12 },
+    hint: 'On the Neo-Slim Par Bar (NPRO-PAR-SL-BAR-48), choose its 12-channel DMX mode (each of the 4 pars: red, green, blue in turn) and set its address to the one shown here. If only some pars light or colors are wrong, use Find channels.',
   },
   {
     id: 'rgb-3ch',
     label: 'Generic RGB light (3 channels)',
-    fixture: { name: 'RGB light', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 },
+    fixture: { name: 'RGB light', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, heads: 1, headSpacing: 3, channels: 3 },
     hint: 'Most simple RGB pars: 1 red, 2 green, 3 blue. Use Find channels if the colors are wrong.',
   },
   {
     id: 'rgb-dim-4ch',
     label: 'Generic dimmer + RGB light (4 channels)',
-    fixture: { name: 'Dimmer + RGB light', role: 'stage', red: 2, green: 3, blue: 4, dimmer: 1, channels: 4 },
+    fixture: { name: 'Dimmer + RGB light', role: 'stage', red: 2, green: 3, blue: 4, dimmer: 1, heads: 1, headSpacing: 4, channels: 4 },
     hint: 'Common 4-channel layout: 1 dimmer, 2 red, 3 green, 4 blue. Use Find channels if the colors are wrong.',
   },
 ];
@@ -77,6 +89,8 @@ export const DEFAULT_DMX_CONFIG: DmxConfig = { fixtures: [DEFAULT_FIXTURE], warn
 const STORAGE_KEY = 'walkup.dmx.v1';
 const MAX_OFFSET = 32;
 export const MAX_FIXTURES = 16;
+const MAX_HEADS = 16;
+const MAX_CHANNELS = 128;
 /** DMX frames must carry at least this many slots; shorter is not standard. */
 const MIN_SLOTS = 24;
 
@@ -86,7 +100,8 @@ const int = (v: unknown, lo: number, hi: number, fallback: number) => {
 };
 
 /** Highest channel the fixture uses: its mode's footprint or the highest mapped channel, whichever is larger. */
-export const footprint = (f: DmxFixture) => Math.max(f.channels, f.red, f.green, f.blue, f.dimmer);
+export const footprint = (f: DmxFixture) =>
+  Math.max(f.channels, f.dimmer, (f.heads - 1) * f.headSpacing + Math.max(f.red, f.green, f.blue));
 
 /** Force one light's settings into range, and keep the whole fixture inside the 512-channel universe. */
 export function clampFixture(c: Partial<DmxFixture>): DmxFixture {
@@ -99,10 +114,14 @@ export function clampFixture(c: Partial<DmxFixture>): DmxFixture {
     green: int(c.green, 1, MAX_OFFSET, d.green),
     blue: int(c.blue, 1, MAX_OFFSET, d.blue),
     dimmer: int(c.dimmer, 0, MAX_OFFSET, d.dimmer),
+    heads: int(c.heads, 1, MAX_HEADS, 1),
+    headSpacing: 0,
     channels: 0,
   };
+  // Default spacing: one par's red/green/blue sit side by side, so the next par starts right after them.
+  f.headSpacing = int(c.headSpacing, 1, MAX_OFFSET, Math.max(f.red, f.green, f.blue));
   const mapped = footprint({ ...f, channels: 1 });
-  f.channels = Math.max(mapped, int(c.channels, 1, MAX_OFFSET, mapped));
+  f.channels = Math.min(MAX_CHANNELS, Math.max(mapped, int(c.channels, 1, MAX_CHANNELS, mapped)));
   const highest = footprint(f);
   if (f.address + highest - 1 > 512) f.address = 512 - highest + 1;
   return f;
@@ -169,9 +188,12 @@ export function buildFrame(cfg: DmxConfig, warning: LightColor, stage: LightColo
   const frame = new Uint8Array(Math.max(MIN_SLOTS, Math.min(512, top)) + 1);
   for (const f of cfg.fixtures) {
     const color = f.role === 'stage' ? stage : warning;
-    frame[slotOf(f, f.red)] = color.r;
-    frame[slotOf(f, f.green)] = color.g;
-    frame[slotOf(f, f.blue)] = color.b;
+    for (let h = 0; h < f.heads; h++) {
+      const step = h * f.headSpacing;
+      frame[slotOf(f, f.red + step)] = color.r;
+      frame[slotOf(f, f.green + step)] = color.g;
+      frame[slotOf(f, f.blue + step)] = color.b;
+    }
     if (f.dimmer > 0) frame[slotOf(f, f.dimmer)] = color.r || color.g || color.b ? 255 : 0;
   }
   return frame;
