@@ -295,3 +295,32 @@ body:has(.tw){margin:0;background:#000}
 .tw-warn .tw-clock{color:#facc15}
 .tw-over .tw-clock{color:#ef4444}
 .tw-hint{font-size:clamp(14px,2.4vmin,22px);color:#52525b}
+
+/* ---------- Lights screen ---------- */
+.lights{max-width:1100px;margin:0 auto}
+.dip{display:inline-flex;gap:2px}
+.dip-sw{display:inline-flex;align-items:flex-end;justify-content:center;width:20px;height:30px;padding-bottom:2px;border:1px solid var(--line-strong);border-radius:3px;font-size:10px;color:var(--muted);background:linear-gradient(var(--panel3) 50%,var(--panel2) 50%)}
+.dip-sw.on{color:var(--accent-ink);background:linear-gradient(var(--accent) 50%,var(--panel2) 50%);border-color:var(--accent);align-items:flex-start;padding-top:2px}
+.check-now{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap;font-size:var(--fs-lg)}
+.chan-table{width:100%;border-collapse:collapse}
+.chan-table th{text-align:left;font-size:var(--fs-xs);color:var(--muted);font-weight:var(--fw-semibold);padding:var(--s1)}
+.chan-table td{padding:2px var(--s1)}
+.chan-table td:first-child{color:var(--muted);width:32px}
+.chan-sliders{display:grid;gap:2px}
+.chan-row{display:grid;grid-template-columns:32px minmax(140px,1.2fr) minmax(120px,2fr) 72px;gap:var(--s3);align-items:center;padding:2px var(--s2);border-radius:var(--r-sm)}
+.chan-row.hot{background:var(--accent-soft)}
+.chan-num{color:var(--muted);font-variant-numeric:tabular-nums}
+.chan-name{font-size:var(--fs-sm)}
+.chan-val{min-height:28px;padding:2px var(--s2)}
+.legend{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm)}
+.legend i{width:12px;height:12px;border-radius:3px}
+.universe{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:3px}
+.cell{border:1px solid var(--line);border-left-width:4px;border-radius:4px;padding:2px 4px;background:var(--panel2);display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.cell.free{opacity:.45}
+.cell-ch{font-size:10px;color:var(--muted)}
+.cell-v{font-size:var(--fs-sm);font-variant-numeric:tabular-nums;font-weight:var(--fw-semibold)}
+@media(max-width:720px){
+  .universe{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .chan-row{grid-template-columns:28px 1fr 64px}
+  .chan-row input[type=range]{grid-column:1/-1;order:3}
+}
