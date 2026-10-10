@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { LightEngine } from '../engine';
-import { cssColor } from '../color';
+import { MOMENTS } from '../looks';
 import type { Bands } from '../sound';
 import { useEngine } from './useEngine';
 
-/** How the lights follow the show for now (Phase 2 replaces this with looks): warning timing, white level, sound. */
+/** Which look each moment of the show fires, the warning flash length, and the microphone for sound-reactive looks. */
 export function ShowTab({ engine }: { engine: LightEngine }) {
   useEngine(engine);
   const mic = engine.sound;
@@ -14,32 +14,53 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
   useEffect(() => mic.subscribe(() => force((n) => n + 1)), [mic]);
   useEffect(() => { void mic.devices().then(setMics); }, [mic, mic.status]);
   useEffect(() => {
-    const t = setInterval(() => { setBands(mic.levels()); force((n) => n + 1); }, 100);
+    const t = setInterval(() => setBands(mic.levels()), 100);
     return () => clearInterval(t);
   }, [mic]);
 
-  const { warnPulseSec, stageWhite, soundSensitivity } = engine.show;
-  const stage = engine.rig.fixtures.filter((f) => f.role === 'stage').length;
-  const warning = engine.rig.fixtures.length - stage;
+  const { warnPulseSec, soundSensitivity } = engine.show;
+  const { looks, cues } = engine.looksState;
   const level = Math.round(Math.min(1, (bands?.level ?? 0) * (0.5 + ((soundSensitivity - 1) / 9) * 2.5)) * 100);
-  const now = engine.stageMode === 'white' ? `white at ${stageWhite}% (an act is on stage)`
-    : engine.stageMode === 'sound' ? (mic.status === 'on' ? 'following the microphone' : 'slow color fade (microphone off)')
-      : 'off (Live mode is closed)';
+  const usesSound = looks.some((l) => (l.all.effect === 'sound' || Object.values(l.perFixture).some((p) => p.effect === 'sound')) && Object.values(cues).includes(l.id));
 
   return (
     <>
       <div className="card mb-3">
-        <div className="row wrap">
-          <h2 className="m-0">Stage lights</h2>
-          <span className="muted">{stage} light{stage === 1 ? '' : 's'} · now: {now}</span>
-          <div className="spacer" />
-          {engine.status === 'connected' && <span className="swatch" title="Color being sent to the stage lights" style={{ background: cssColor(engine.lastStageColor) }} />}
+        <h2 className="m-0">Show cues</h2>
+        <p className="muted mt-2">While Live mode is open, each moment of the show fires a look. Firing a look by hand on the Console overrides this until you go back to the show.</p>
+        <div className="cue-table">
+          {MOMENTS.map((m) => (
+            <div key={m.id} className={`cue-row${engine.moment === m.id ? ' now' : ''}`}>
+              <div>
+                <strong>{m.label}</strong>{engine.moment === m.id && <span className="pill ok ml-2">now</span>}
+                <div className="muted">{m.hint}</div>
+              </div>
+              <select value={cues[m.id]} aria-label={`Look for ${m.label}`} onChange={(e) => engine.setCue(m.id, e.target.value)}>
+                <option value="">Dark</option>
+                {looks.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+          ))}
         </div>
-        <p className="muted mt-2">
-          White while a comedian is on the clock. During walk-ups, walk-offs, between acts and the closing song they change color
-          with the sound the microphone hears: each beat jumps to a new color, and louder is brighter. They only follow the show
-          while Live mode is open.
+        <div className="grid g3 mt-3">
+          <div>
+            <label>Light warning lasts (sec, 0 = until time's up)</label>
+            <input type="number" min={0} max={30} value={warnPulseSec} aria-label="Light warning length in seconds"
+              onChange={(e) => engine.setShowSettings({ warnPulseSec: e.target.value === '' ? 0 : Number(e.target.value) })} />
+          </div>
+        </div>
+        <p className="muted mt-2 mb-0">
+          In Live mode's pop-out timer mode the Light warning and Time's up cues are skipped (the lights stay on the On stage look);
+          the timer window is the warning instead.
         </p>
+      </div>
+
+      <div className="card">
+        <div className="row wrap">
+          <h2 className="m-0">Microphone</h2>
+          <span className="muted">for Sound reactive looks{usesSound ? '' : ' (no show cue uses one right now)'}</span>
+        </div>
+        <p className="muted mt-2">Point it at the speakers. Each beat jumps to a new color and louder is brighter. With the mic off, sound looks fade slowly through colors.</p>
         <div className="row wrap gap-2 mb-2">
           {mic.status === 'on'
             ? <button className="mini" onClick={() => mic.stop()}>Stop microphone</button>
@@ -57,30 +78,9 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
         )}
         <div className="grid g3">
           <div>
-            <label>White level during a set (%)</label>
-            <input type="number" min={0} max={100} value={stageWhite} aria-label="White level during a set (%)"
-              onChange={(e) => engine.setShowSettings({ stageWhite: e.target.value === '' ? 0 : Number(e.target.value) })} />
-          </div>
-          <div>
             <label>Sound sensitivity (1-10)</label>
             <input type="range" min={1} max={10} value={soundSensitivity} aria-label="Sound sensitivity (1-10)"
               onChange={(e) => engine.setShowSettings({ soundSensitivity: Number(e.target.value) })} />
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2 className="m-0">Warning lights</h2>
-        <p className="muted mt-2">
-          {warning
-            ? `${warning} light${warning === 1 ? '' : 's'}. At each act's light-warning time they flash red, go off, then turn red when time is up and stay red until the next act.`
-            : 'No light has the Warning role. Set a light\'s role in the Rig tab, or use the pop-out timer in Live mode instead.'}
-        </p>
-        <div className="grid g3">
-          <div>
-            <label>Warning flash (sec, 0 = stay on)</label>
-            <input type="number" min={0} max={30} value={warnPulseSec} aria-label="Warning flash (sec, 0 = stay on)"
-              onChange={(e) => engine.setShowSettings({ warnPulseSec: e.target.value === '' ? 0 : Number(e.target.value) })} />
           </div>
         </div>
       </div>

@@ -196,7 +196,7 @@ saved lights migrate into the new patch.
 **Done when:** both bars can be addressed with no overlap, every pod of each can be set to any color from the
 tester, and the universe monitor matches what the lights show.
 
-### Phase 2: Looks, effects and Console
+### Phase 2: Looks, effects and Console ✅ built (needs confirming on the real rig)
 Looks with fades, per-pixel effects, priority stack, console with hotkeys.
 **Done when:** you can build *Walk-up*, *On stage* and *Time's up* looks and fire them from the console or Stream
 Deck, with smooth fades and no flicker for 30 minutes straight.
@@ -212,11 +212,15 @@ Spotify move to sit around the lighting screens.
 ---
 
 ## 6. Status
-- **Answered:** the rig is just the two bars; the 4BAR Flex runs in 15-CH mode.
+- **Answered:** the rig is just the two bars; the 4BAR Flex runs in 15-CH mode; the cable is a DSD TECH SH-RS09B
+  (FTDI Open DMX, the default driver); the time warning flashes the bars themselves (Light warning / Time's up looks).
+- **Phase 2 is in `src/lights/`:** `effects.ts` (solid, pulse, chase, rainbow, strobe, sound), `looks.ts` (looks, show
+  cues, `showMoment`), engine crossfades/master/hand-fired looks/keys, and the Console, Looks and Show tabs. Light roles
+  are gone: per-light layers in a look replace them.
 - **Phase 1 is in `src/lights/`:** `profiles.ts` (light library), `patch.ts` (rig, checks, DIP helper, migration),
   `render.ts` (looks → channel values, rig check), `drivers.ts` / `session.ts` / `dmx.worker.ts` / `link.ts` (output
   with worker and page fallback), `engine.ts` (priorities, tester, rig check, show hooks), `ui/` (Lights screen).
-- **Still open:** questions 1, 4 and 5 below, and the Neo-Slim's real channel layout (run the channel tester on it).
+- **Still open:** question 5 below, and the Neo-Slim's real channel layout (run the channel tester on it).
 
 ## 7. Open questions
 1. Which USB-DMX cable is it (brand/model)?

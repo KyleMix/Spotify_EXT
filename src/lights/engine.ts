@@ -1,35 +1,43 @@
 /**
- * The lighting engine: owns the rig, works out what every light shows each frame, and feeds the DMX output.
+ * The lighting engine: owns the rig and the looks, works out what every light shows each frame, and feeds the
+ * DMX output.
  *
  * Who wins, highest first:
- *   blackout → rig check → tester (raw channels on one light) → test color (4 s) → the show → home values.
+ *   blackout → rig check → tester (raw channels on one light) → test color (4 s)
+ *   → a look fired by hand (console / hotkey) → the look the show's current moment fires → dark.
+ * Changing look crossfades over the new look's fade time. The master dimmer scales everything a look shows.
  */
-import { OFF, whiteAt, type LightColor } from './color';
+import { OFF, type LightColor } from './color';
+import { effectColor, mix } from './effects';
 import { DmxLink, type OutputThread } from './link';
 import {
-  allProfiles, clampFixture, clampRig, footprint, loadRig, MAX_FIXTURES, newId, nextFreeAddress, saveRig,
+  allProfiles, clampFixture, clampRig, footprint, loadRig, MAX_FIXTURES, modeOf, newId, nextFreeAddress, saveRig,
   type PatchedFixture, type Rig,
 } from './patch';
-import { clampProfile, type FixtureProfile } from './profiles';
+import { clampProfile, pixelCount, type FixtureProfile } from './profiles';
 import { checkLook, checkSteps, renderUniverse, usedSlots, type CheckStep, type FixtureLook, type RawOverride } from './render';
 import { clampShowSettings, loadShowSettings, saveShowSettings, type ShowLightSettings } from './show';
 import { SoundInput } from './sound';
 import { samePort, serialApi, type DriverId, type PortInfo } from './drivers';
 import type { OutputStatus } from './session';
+import { clampLook, clampLooksState, loadLooks, momentsUsing, saveLooks, type Look, type LooksState, type ShowMoment } from './looks';
 
-export type StageMode = 'off' | 'white' | 'sound';
 export type EngineStatus = 'unsupported' | OutputStatus;
 
 const PORT_KEY = 'walkup.dmx.port';
 const DRIVER_KEY = 'walkup.lights.driver';
 const TICK_MS = 25;
 const CHECK_STEP_MS = 900;
+/** Fade to dark when nothing is active. */
+const RELEASE_FADE_MS = 500;
 
 interface CheckState { steps: CheckStep[]; index: number; playing: boolean; stepStartedAt: number }
+interface FadeState { targetId: string | null; from: Record<string, LightColor[]>; startedAt: number; ms: number }
 
 export class LightEngine {
   rig: Rig = loadRig();
   show: ShowLightSettings = loadShowSettings();
+  looksState: LooksState = loadLooks(this.show.stageWhite);
   readonly sound = new SoundInput();
   driver: DriverId = (() => { try { return localStorage.getItem(DRIVER_KEY) === 'enttec' ? 'enttec' : 'opendmx'; } catch { return 'opendmx'; } })();
 
@@ -38,18 +46,24 @@ export class LightEngine {
   /** Frames per second actually sent to the cable, measured where they are sent. */
   fps = 0;
   blackout = false;
+  /** Master dimmer, 0-1: scales everything looks show (not the tester or rig check). */
+  master = 1;
   /** The last universe rendered (index = DMX channel), for the monitor. */
   universe: Uint8Array = new Uint8Array(513);
-  stageMode: StageMode = 'off';
-  lastStageColor: LightColor = OFF;
+  /** What each light's pixels showed last frame (look colors after fades and master), for previews. */
+  output: Record<string, LightColor[]> = {};
   raw: RawOverride | null = null;
   /** While the tester drives a light, keep every other light dark. */
   soloTester = true;
   check: CheckState | null = null;
+  /** Where the show is (set by Live mode; null when Live mode is closed). */
+  moment: ShowMoment | null = null;
+  /** A look fired by hand from the console or a hotkey; it holds until released. */
+  manualLookId: string | null = null;
 
-  private warningColor: LightColor = OFF;
   private testColor: LightColor | null = null;
   private testTimer?: ReturnType<typeof setTimeout>;
+  private fade: FadeState = { targetId: null, from: {}, startedAt: 0, ms: 0 };
   private timer?: ReturnType<typeof setInterval>;
   private link?: DmxLink;
   private listeners = new Set<() => void>();
@@ -59,6 +73,14 @@ export class LightEngine {
 
   get thread(): OutputThread | null { return this.link && this.status === 'connected' ? this.link.thread : null; }
   get profiles() { return allProfiles(this.rig); }
+  get looks(): Look[] { return this.looksState.looks; }
+
+  /** The look in charge right now: one fired by hand, else the one the show's moment fires. */
+  get activeLookId(): string | null {
+    if (this.manualLookId) return this.manualLookId;
+    if (!this.moment) return null;
+    return this.looksState.cues[this.moment] || null;
+  }
 
   /* ---------- frame loop ---------- */
 
@@ -69,22 +91,52 @@ export class LightEngine {
 
   stop() { clearInterval(this.timer); this.timer = undefined; }
 
+  /** Every light's pixel colors under the active look right now, before fades. */
+  private lookColors(look: Look | undefined, nowMs: number, sound: LightColor): Record<string, LightColor[]> {
+    const out: Record<string, LightColor[]> = {};
+    const counts = this.rig.fixtures.map((f) => { const m = modeOf(this.rig, f); return m ? pixelCount(m) : 0; });
+    const globalCount = counts.reduce((a, b) => a + b, 0);
+    let globalIndex = 0;
+    this.rig.fixtures.forEach((f, fi) => {
+      const layer = look ? look.perFixture[f.id] ?? look.all : null;
+      out[f.id] = Array.from({ length: counts[fi] }, (_, pixel) => {
+        const c = layer ? effectColor(layer, { tMs: nowMs, pixel, globalIndex: globalIndex + pixel, globalCount, sound }) : OFF;
+        return c;
+      });
+      globalIndex += counts[fi];
+    });
+    return out;
+  }
+
   /** Work out every light's look for this instant. */
-  looks(nowMs: number): { looks: Record<string, FixtureLook>; solo: string | null } {
+  frameLooks(nowMs: number): { looks: Record<string, FixtureLook>; solo: string | null } {
     const looks: Record<string, FixtureLook> = {};
     const step = this.check?.steps[this.check.index];
     if (step) { looks[step.fixtureId] = checkLook(step); return { looks, solo: step.fixtureId }; }
-    const stage = this.stageColor(nowMs);
-    this.lastStageColor = stage;
-    for (const f of this.rig.fixtures) {
-      looks[f.id] = { colors: [this.testColor ?? (f.role === 'stage' ? stage : this.warningColor)] };
+
+    // The sound colorizer advances once per frame, whichever lights use it.
+    const sound = this.sound.color(nowMs, this.show.soundSensitivity);
+    const activeId = this.activeLookId;
+    const look = activeId ? this.looksState.looks.find((l) => l.id === activeId) : undefined;
+    if (activeId !== this.fade.targetId) {
+      this.fade = { targetId: activeId, from: this.output, startedAt: nowMs, ms: look ? look.fadeMs : RELEASE_FADE_MS };
     }
+    const target = this.lookColors(look, nowMs, sound);
+    const k = this.fade.ms <= 0 ? 1 : (nowMs - this.fade.startedAt) / this.fade.ms;
+    const output: Record<string, LightColor[]> = {};
+    for (const f of this.rig.fixtures) {
+      const to = target[f.id] ?? [];
+      const from = this.fade.from[f.id] ?? [];
+      output[f.id] = k >= 1 ? to : to.map((c, i) => mix(from[i] ?? OFF, c, k));
+      looks[f.id] = { colors: this.testColor ? [this.testColor] : output[f.id], intensity: this.testColor ? 1 : this.master };
+    }
+    this.output = output;
     return { looks, solo: this.raw && this.soloTester ? this.raw.fixtureId : null };
   }
 
   tick(nowMs = Date.now()) {
     this.advanceCheck(nowMs);
-    const { looks, solo } = this.looks(nowMs);
+    const { looks, solo } = this.frameLooks(nowMs);
     this.universe = renderUniverse(this.rig, looks, {
       blackout: this.blackout,
       raw: this.check ? null : this.raw,
@@ -93,24 +145,32 @@ export class LightEngine {
     this.link?.send(this.universe, usedSlots(this.rig));
   }
 
-  private stageColor(nowMs: number): LightColor {
-    if (this.stageMode === 'white') return whiteAt(this.show.stageWhite);
-    if (this.stageMode === 'sound') return this.sound.color(nowMs, this.show.soundSensitivity);
-    return OFF;
-  }
+  /* ---------- show and console ---------- */
 
-  /* ---------- show hooks (Live mode) ---------- */
-
-  /** Color for the warning lights (red at the light warning, off otherwise). */
-  setShowColor(c: LightColor) { this.warningColor = c; }
-
-  setStageMode(m: StageMode) {
-    if (m === this.stageMode) return;
-    this.stageMode = m;
+  /** Live mode reports where the show is; null when Live mode closes. */
+  setShowMoment(m: ShowMoment | null) {
+    if (m === this.moment) return;
+    this.moment = m;
     this.emit();
   }
 
-  /** Every light shows `c` for a few seconds, then hands back to the show. OFF cancels. */
+  /** Fire a look by hand; it holds until released or another look is fired. */
+  fireLook(id: string) {
+    if (!this.looksState.looks.some((l) => l.id === id)) return;
+    this.manualLookId = id;
+    this.emit();
+  }
+
+  /** Hand the lights back to the show (or dark when Live mode is closed). */
+  releaseLook() {
+    if (!this.manualLookId) return;
+    this.manualLookId = null;
+    this.emit();
+  }
+
+  setMaster(v: number) { this.master = Math.min(1, Math.max(0, v)); this.emit(); }
+
+  /** Every light shows `c` for a few seconds, then hands back to the looks. OFF cancels. */
   test(c: LightColor, ms = 4000) {
     clearTimeout(this.testTimer);
     if (c === OFF) { this.testColor = null; this.emit(); return; }
@@ -123,6 +183,60 @@ export class LightEngine {
     this.show = clampShowSettings({ ...this.show, ...s });
     saveShowSettings(this.show);
     this.emit();
+  }
+
+  /* ---------- looks ---------- */
+
+  private setLooksState(s: LooksState) {
+    this.looksState = clampLooksState(s);
+    saveLooks(this.looksState);
+    if (this.manualLookId && !this.looksState.looks.some((l) => l.id === this.manualLookId)) this.manualLookId = null;
+    this.emit();
+  }
+
+  /** Save a look (new or edited); returns its id. Keys stay unique: a key moves to the look it was last given to. */
+  saveLook(l: Partial<Look>): string {
+    const look = clampLook(l);
+    const looks = this.looksState.looks.map((x) => (x.key && x.key === look.key && x.id !== look.id ? { ...x, key: undefined } : x));
+    const i = looks.findIndex((x) => x.id === look.id);
+    if (i >= 0) looks[i] = look; else looks.push(look);
+    const releaseKey = this.looksState.releaseKey === look.key ? undefined : this.looksState.releaseKey;
+    this.setLooksState({ ...this.looksState, looks, releaseKey });
+    return look.id;
+  }
+
+  /** Looks wired to a show moment can't be deleted until the moment uses another look. */
+  deleteLook(id: string): boolean {
+    if (momentsUsing(this.looksState, id).length) return false;
+    this.setLooksState({ ...this.looksState, looks: this.looksState.looks.filter((l) => l.id !== id) });
+    return true;
+  }
+
+  moveLook(id: string, dir: -1 | 1) {
+    const looks = [...this.looksState.looks];
+    const i = looks.findIndex((l) => l.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= looks.length) return;
+    [looks[i], looks[j]] = [looks[j], looks[i]];
+    this.setLooksState({ ...this.looksState, looks });
+  }
+
+  setCue(moment: ShowMoment, lookId: string) {
+    this.setLooksState({ ...this.looksState, cues: { ...this.looksState.cues, [moment]: lookId } });
+  }
+
+  /** Bind a key to "back to show"; it is taken off any look that had it. */
+  setReleaseKey(code: string | undefined) {
+    const looks = this.looksState.looks.map((l) => (code && l.key === code ? { ...l, key: undefined } : l));
+    this.setLooksState({ ...this.looksState, looks, releaseKey: code });
+  }
+
+  /** A key press from anywhere in the app: fires the look bound to it, or releases. Returns whether it was used. */
+  handleKey(code: string): boolean {
+    if (code && code === this.looksState.releaseKey) { this.releaseLook(); return true; }
+    const look = this.looksState.looks.find((l) => l.key === code);
+    if (!look) return false;
+    this.fireLook(look.id);
+    return true;
   }
 
   setBlackout(on: boolean) { this.blackout = on; this.emit(); }

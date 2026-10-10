@@ -5,12 +5,16 @@ import { useEngine } from './useEngine';
 import { RigTab } from './RigTab';
 import { ToolsTab } from './ToolsTab';
 import { ShowTab } from './ShowTab';
+import { ConsoleTab } from './ConsoleTab';
+import { LooksTab } from './LooksTab';
 
-type Tab = 'rig' | 'tools' | 'show';
+type Tab = 'console' | 'looks' | 'show' | 'rig' | 'tools';
 const TABS: { id: Tab; label: string; title: string }[] = [
+  { id: 'console', label: 'Console', title: 'Fire looks by hand, master dimmer, back to show' },
+  { id: 'looks', label: 'Looks', title: 'Build and edit looks: colors, effects, fades, keys' },
+  { id: 'show', label: 'Show', title: 'Which look each moment of the show fires, and the microphone' },
   { id: 'rig', label: 'Rig', title: 'Which lights are on the chain, their modes and addresses' },
   { id: 'tools', label: 'Tools', title: 'Universe monitor, channel tester and rig check' },
-  { id: 'show', label: 'Show', title: 'How the lights follow the show and the microphone' },
 ];
 
 /** Connection status, cable type, connect and blackout: always visible at the top of the Lights screen. */
@@ -50,7 +54,13 @@ export function ConnectionBar({ engine }: { engine: LightEngine }) {
 }
 
 export function LightsScreen({ engine }: { engine: LightEngine }) {
-  const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('walkup.lights.tab') as Tab) || 'rig'; } catch { return 'rig'; } });
+  const [tab, setTab] = useState<Tab>(() => {
+    const fallback: Tab = engine.rig.fixtures.length ? 'console' : 'rig';
+    try {
+      const t = sessionStorage.getItem('walkup.lights.tab') as Tab | null;
+      return t && TABS.some((x) => x.id === t) ? t : fallback;
+    } catch { return fallback; }
+  });
   const [testId, setTestId] = useState<string | null>(null);
   const go = (t: Tab) => { setTab(t); try { sessionStorage.setItem('walkup.lights.tab', t); } catch { /* ignore */ } };
 
@@ -62,6 +72,8 @@ export function LightsScreen({ engine }: { engine: LightEngine }) {
           <button key={t.id} role="tab" aria-selected={tab === t.id} title={t.title} className={tab === t.id ? 'on' : ''} onClick={() => go(t.id)}>{t.label}</button>
         ))}
       </div>
+      {tab === 'console' && <ConsoleTab engine={engine} />}
+      {tab === 'looks' && <LooksTab engine={engine} />}
       {tab === 'rig' && <RigTab engine={engine} onTest={(id) => { setTestId(id); go('tools'); }} />}
       {tab === 'tools' && <ToolsTab engine={engine} initialFixture={testId} />}
       {tab === 'show' && <ShowTab engine={engine} />}

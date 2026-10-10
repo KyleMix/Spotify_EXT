@@ -3,8 +3,8 @@ import { BLUE, GREEN, OFF, RED, WHITE } from './color';
 import type { PatchedFixture, Rig } from './patch';
 import { checkLook, checkSteps, describeStep, renderUniverse, usedSlots } from './render';
 
-const bar: PatchedFixture = { id: 'bar', name: '4BAR', profileId: 'chauvet-4bar-flex', modeId: '15ch', address: 1, role: 'stage' };
-const neo: PatchedFixture = { id: 'neo', name: 'Neo', profileId: 'irradiant-neo-slim-bar-48', modeId: '12ch', address: 16, role: 'stage' };
+const bar: PatchedFixture = { id: 'bar', name: '4BAR', profileId: 'chauvet-4bar-flex', modeId: '15ch', address: 1 };
+const neo: PatchedFixture = { id: 'neo', name: 'Neo', profileId: 'irradiant-neo-slim-bar-48', modeId: '12ch', address: 16 };
 const rig: Rig = { fixtures: [bar, neo], customProfiles: [] };
 const slice = (u: Uint8Array, from: number, to: number) => Array.from(u.slice(from, to + 1));
 

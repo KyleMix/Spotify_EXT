@@ -38,6 +38,18 @@ export function App() {
   const store = useStore();
   const lights = useMemo(() => new LightEngine(), []);
   useEffect(() => { lights.start(); void lights.autoConnect(); return () => lights.stop(); }, [lights]);
+  // Look keys (e.g. a Stream Deck on F13-F24) work on every screen, except while typing in a text field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      const typing = el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'
+        || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes((el as HTMLInputElement).type));
+      if (typing || e.repeat) return;
+      if (lights.handleKey(e.code)) e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lights]);
   const [mode, setMode] = useState<'lights' | 'edit' | 'live'>(() => {
     try { const m = sessionStorage.getItem('walkup.mode'); return m === 'edit' || m === 'live' ? m : 'lights'; } catch { return 'lights'; }
   });

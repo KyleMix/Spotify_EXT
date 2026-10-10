@@ -1,12 +1,12 @@
-/** How the lights follow the show (until Phase 2 replaces this with looks): settings and the warning timing. */
+/** Show-wide lighting settings: warning flash length, microphone sensitivity. */
 
 export interface ShowLightSettings {
   /**
-   * How long the warning light stays red when the light-warning time hits, in seconds. After that it goes off
-   * until time is up. 0 means it stays on from the warning straight through overtime.
+   * How long the Light warning look holds when the light-warning time hits, in seconds, before going back to the
+   * On stage look until time is up. 0 means it holds straight through to time's up.
    */
   warnPulseSec: number;
-  /** Stage lights' white level while an act is performing, in percent. */
+  /** White level from the previous version; only used to seed the Stage white look. */
   stageWhite: number;
   /** How strongly stage lights react to the microphone, 1 (only loud music) to 10 (reacts to quiet sound). */
   soundSensitivity: number;
@@ -26,23 +26,6 @@ export function clampShowSettings(s: Partial<ShowLightSettings>): ShowLightSetti
     stageWhite: int(s.stageWhite, 0, 100, d.stageWhite),
     soundSensitivity: int(s.soundSensitivity, 1, 10, d.soundSensitivity),
   };
-}
-
-/**
- * Whether the warning light should be red right now.
- * - Light-warning time reached: red for `pulseSec` seconds, then off (0 = stay red).
- * - Time is up: red, and it stays red until the act ends (the phase leaves "timing").
- * - Anything else: off.
- */
-export function lightIsOn(
-  phase: string, elapsedMs: number, setLengthMin: number, warnAtMin: number, pulseSec: number,
-): boolean {
-  if (phase !== 'timing') return false;
-  const totalMs = setLengthMin * 60_000;
-  if (elapsedMs >= totalMs) return true;                       // time is up: solid red
-  const warnStartMs = Math.max(0, totalMs - warnAtMin * 60_000);
-  if (elapsedMs < warnStartMs) return false;                   // before the warning
-  return pulseSec === 0 || elapsedMs - warnStartMs < pulseSec * 1000;
 }
 
 const KEY = 'walkup.lights.show.v1';

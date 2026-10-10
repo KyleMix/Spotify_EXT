@@ -1,13 +1,6 @@
 /** The rig: which lights are on the DMX chain, at which address, in which mode. Plus checks and storage. */
 import { BUILT_IN_PROFILES, clampProfile, findMode, findProfile, type FixtureProfile, type ProfileMode } from './profiles';
 
-/**
- * What a light does in the show (until Phase 2 replaces this with looks):
- * - 'warning': the comedian's time light (red at the warning, solid red when time is up);
- * - 'stage': stage wash (white during a set, sound-reactive color between acts).
- */
-export type FixtureRole = 'warning' | 'stage';
-
 export interface PatchedFixture {
   id: string;
   name: string;
@@ -15,7 +8,6 @@ export interface PatchedFixture {
   modeId: string;
   /** DMX start address, 1-512. */
   address: number;
-  role: FixtureRole;
 }
 
 export interface Rig {
@@ -103,7 +95,6 @@ export function clampFixture(f: Partial<PatchedFixture>, rig: Rig): PatchedFixtu
     profileId: profile.id,
     modeId: mode.id,
     address: int(f.address, 1, 512, 1),
-    role: f.role === 'warning' ? 'warning' : 'stage',
   };
 }
 
@@ -137,7 +128,6 @@ export function migrateOldConfig(old: unknown): Rig {
     const dimmer = int(f.dimmer, 0, 32, 0), heads = int(f.heads, 1, 16, 1);
     const spacing = int(f.headSpacing, 1, 32, Math.max(red, green, blue));
     const name = typeof f.name === 'string' && f.name.trim() ? f.name.slice(0, 40) : 'Light';
-    const role: FixtureRole = f.role === 'stage' ? 'stage' : 'warning';
     const address = int(f.address, 1, 512, 1);
     const plainRgb = red === 1 && green === 2 && blue === 3 && dimmer === 0;
     let profileId: string, modeId: string;
@@ -158,7 +148,7 @@ export function migrateOldConfig(old: unknown): Rig {
       modeId = 'mode1';
       rig.customProfiles.push({ id: profileId, name: `${name} (from old settings)`, addressing: 'display', modes: [{ id: modeId, name: `${top}-CH`, channels }] });
     }
-    rig.fixtures.push({ id: newId(), name, profileId, modeId, address, role });
+    rig.fixtures.push({ id: newId(), name, profileId, modeId, address });
   }
   return rig;
 }

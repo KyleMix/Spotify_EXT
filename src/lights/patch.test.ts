@@ -6,9 +6,9 @@ import {
 import { BUILT_IN_PROFILES, channelLabel, findMode, pixelCount } from './profiles';
 
 const bar = (id: string, address: number, modeId = '15ch'): PatchedFixture =>
-  ({ id, name: id, profileId: 'chauvet-4bar-flex', modeId, address, role: 'stage' });
+  ({ id, name: id, profileId: 'chauvet-4bar-flex', modeId, address });
 const neo = (id: string, address: number): PatchedFixture =>
-  ({ id, name: id, profileId: 'irradiant-neo-slim-bar-48', modeId: '12ch', address, role: 'stage' });
+  ({ id, name: id, profileId: 'irradiant-neo-slim-bar-48', modeId: '12ch', address });
 const rigOf = (...fixtures: PatchedFixture[]): Rig => ({ fixtures, customProfiles: [] });
 
 describe('built-in profiles', () => {
@@ -77,15 +77,15 @@ describe('migrating old settings', () => {
       { name: 'Chauvet 4BAR Flex', role: 'stage', address: 31, red: 1, green: 2, blue: 3, dimmer: 0, heads: 1, headSpacing: 3, channels: 3 },
       { name: 'Neo-Slim Par Bar', role: 'stage', address: 1, red: 1, green: 2, blue: 3, dimmer: 0, heads: 4, headSpacing: 3, channels: 12 },
     ] });
-    expect(r.fixtures.map((f) => [f.profileId, f.modeId, f.address, f.role])).toEqual([
-      ['chauvet-4bar-flex', '3ch', 31, 'stage'], ['irradiant-neo-slim-bar-48', '12ch', 1, 'stage']]);
+    expect(r.fixtures.map((f) => [f.profileId, f.modeId, f.address])).toEqual([
+      ['chauvet-4bar-flex', '3ch', 31], ['irradiant-neo-slim-bar-48', '12ch', 1]]);
     expect(r.customProfiles).toEqual([]);
   });
   it('keeps unusual channel layouts exactly, as a custom light type', () => {
     const r = migrateOldConfig({ fixtures: [{ name: 'Odd', address: 1, red: 5, green: 6, blue: 7, dimmer: 1, channels: 7 }] });
     const ch = r.customProfiles[0].modes[0].channels;
     expect(ch.map((c) => c.type)).toEqual(['intensity', 'other', 'other', 'other', 'red', 'green', 'blue']);
-    expect(r.fixtures[0]).toMatchObject({ profileId: r.customProfiles[0].id, address: 1, role: 'warning' });
+    expect(r.fixtures[0]).toMatchObject({ profileId: r.customProfiles[0].id, address: 1 });
   });
   it('reads the original single-light format', () => {
     const r = migrateOldConfig({ address: 7, red: 1, green: 2, blue: 3, dimmer: 0 });
