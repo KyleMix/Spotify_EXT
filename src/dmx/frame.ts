@@ -1,9 +1,17 @@
 /** Pure DMX helpers: settings for every light on the chain, frame building, and when the stage lights should be lit. */
 
-/** One light on the DMX chain. Every light on the chain shows the same color. */
+/**
+ * What a light does in the show:
+ * - 'warning': the comedian's time light (red flash at the warning, solid red when time is up, otherwise off);
+ * - 'stage': stage wash (white while an act is on the clock, sound-reactive color the rest of the show).
+ */
+export type FixtureRole = 'warning' | 'stage';
+
+/** One light on the DMX chain. */
 export interface DmxFixture {
   /** Label shown in the panel, e.g. "Chauvet 4BAR Flex". */
   name: string;
+  role: FixtureRole;
   /** DMX start address of the fixture (the number on its display, e.g. d001 = 1). */
   address: number;
   /** Channel numbers within the fixture's mode, counting from 1 at the start address. */
@@ -24,6 +32,10 @@ export interface DmxConfig {
    * until time is up. 0 means it stays on from the warning straight through overtime.
    */
   warnPulseSec: number;
+  /** Stage lights' white level while an act is performing, in percent. */
+  stageWhite: number;
+  /** How strongly stage lights react to the microphone, 1 (only loud music) to 10 (reacts to quiet sound). */
+  soundSensitivity: number;
 }
 
 export interface LightColor { r: number; g: number; b: number }
@@ -34,7 +46,7 @@ export const GREEN: LightColor = { r: 0, g: 255, b: 0 };
 export const BLUE: LightColor = { r: 0, g: 0, b: 255 };
 export const WHITE: LightColor = { r: 255, g: 255, b: 255 };
 
-export const DEFAULT_FIXTURE: DmxFixture = { name: 'Stage light', address: 1, red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 };
+export const DEFAULT_FIXTURE: DmxFixture = { name: 'Warning light', role: 'warning', address: 1, red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 };
 
 export interface FixturePreset { id: string; label: string; fixture: Omit<DmxFixture, 'address'>; hint: string }
 
@@ -43,24 +55,24 @@ export const FIXTURE_PRESETS: FixturePreset[] = [
   {
     id: '4bar-flex-3ch',
     label: 'Chauvet 4BAR Flex (3-CH mode)',
-    fixture: { name: 'Chauvet 4BAR Flex', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 },
+    fixture: { name: 'Chauvet 4BAR Flex', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 },
     hint: 'On the 4BAR Flex, set the DMX personality to 3-CH (all four pars together: 1 red, 2 green, 3 blue) and set its address to the one shown here.',
   },
   {
     id: 'rgb-3ch',
     label: 'Generic RGB light (3 channels)',
-    fixture: { name: 'RGB light', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 },
+    fixture: { name: 'RGB light', role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 },
     hint: 'Most simple RGB pars: 1 red, 2 green, 3 blue. Use Find channels if the colors are wrong.',
   },
   {
     id: 'rgb-dim-4ch',
     label: 'Generic dimmer + RGB light (4 channels)',
-    fixture: { name: 'Dimmer + RGB light', red: 2, green: 3, blue: 4, dimmer: 1, channels: 4 },
+    fixture: { name: 'Dimmer + RGB light', role: 'stage', red: 2, green: 3, blue: 4, dimmer: 1, channels: 4 },
     hint: 'Common 4-channel layout: 1 dimmer, 2 red, 3 green, 4 blue. Use Find channels if the colors are wrong.',
   },
 ];
 
-export const DEFAULT_DMX_CONFIG: DmxConfig = { fixtures: [DEFAULT_FIXTURE], warnPulseSec: 3 };
+export const DEFAULT_DMX_CONFIG: DmxConfig = { fixtures: [DEFAULT_FIXTURE], warnPulseSec: 3, stageWhite: 100, soundSensitivity: 5 };
 
 const STORAGE_KEY = 'walkup.dmx.v1';
 const MAX_OFFSET = 32;
@@ -81,6 +93,7 @@ export function clampFixture(c: Partial<DmxFixture>): DmxFixture {
   const d = DEFAULT_FIXTURE;
   const f: DmxFixture = {
     name: typeof c.name === 'string' ? c.name.slice(0, 40) : d.name,
+    role: c.role === 'stage' ? 'stage' : 'warning', // lights saved before roles existed were the warning light
     address: int(c.address, 1, 512, d.address),
     red: int(c.red, 1, MAX_OFFSET, d.red),
     green: int(c.green, 1, MAX_OFFSET, d.green),
@@ -106,6 +119,8 @@ export function clampDmxConfig(c: Partial<DmxConfig> & Partial<DmxFixture>): Dmx
   return {
     fixtures: list.slice(0, MAX_FIXTURES).map((f) => clampFixture(f ?? {})),
     warnPulseSec: int(c.warnPulseSec, 0, 30, DEFAULT_DMX_CONFIG.warnPulseSec),
+    stageWhite: int(c.stageWhite, 0, 100, DEFAULT_DMX_CONFIG.stageWhite),
+    soundSensitivity: int(c.soundSensitivity, 1, 10, DEFAULT_DMX_CONFIG.soundSensitivity),
   };
 }
 
@@ -114,6 +129,12 @@ function pickLegacy(c: Partial<DmxFixture>): Partial<DmxFixture> {
   for (const k of ['address', 'red', 'green', 'blue', 'dimmer'] as const) if (c[k] !== undefined) out[k] = c[k];
   return out;
 }
+
+/** White at a percentage, for stage lights during a set. */
+export const whiteAt = (percent: number): LightColor => {
+  const v = Math.round((Math.min(100, Math.max(0, percent)) / 100) * 255);
+  return { r: v, g: v, b: v };
+};
 
 /** Absolute DMX slot (1-512) for a channel offset of the fixture. */
 export const slotOf = (f: DmxFixture, offset: number) => f.address + offset - 1;
@@ -130,7 +151,7 @@ export function overlaps(fixtures: DmxFixture[]): [number, number][] {
   for (let i = 0; i < fixtures.length; i++) {
     for (let j = i + 1; j < fixtures.length; j++) {
       const a = fixtures[i], b = fixtures[j];
-      const sharesAddress = a.address === b.address && footprint(a) === footprint(b)
+      const sharesAddress = a.address === b.address && a.role === b.role && footprint(a) === footprint(b)
         && a.red === b.red && a.green === b.green && a.blue === b.blue && a.dimmer === b.dimmer;
       if (sharesAddress) continue; // identical lights on one address is a valid way to run them as one
       if (a.address <= b.address + footprint(b) - 1 && b.address <= a.address + footprint(a) - 1) out.push([i, j]);
@@ -139,11 +160,15 @@ export function overlaps(fixtures: DmxFixture[]): [number, number][] {
   return out;
 }
 
-/** Build one DMX frame: index 0 is the start code (0), index N is DMX channel N. Every light gets the same color. */
-export function buildFrame(cfg: DmxConfig, color: LightColor): Uint8Array {
+/**
+ * Build one DMX frame: index 0 is the start code (0), index N is DMX channel N.
+ * Warning lights get `warning`, stage lights get `stage` (the same color for both when omitted).
+ */
+export function buildFrame(cfg: DmxConfig, warning: LightColor, stage: LightColor = warning): Uint8Array {
   const top = cfg.fixtures.reduce((m, f) => Math.max(m, slotOf(f, footprint(f))), 0);
   const frame = new Uint8Array(Math.max(MIN_SLOTS, Math.min(512, top)) + 1);
   for (const f of cfg.fixtures) {
+    const color = f.role === 'stage' ? stage : warning;
     frame[slotOf(f, f.red)] = color.r;
     frame[slotOf(f, f.green)] = color.g;
     frame[slotOf(f, f.blue)] = color.b;

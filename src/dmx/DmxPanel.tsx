@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { DmxOutput } from './output';
-import { BLUE, FIXTURE_PRESETS, GREEN, MAX_FIXTURES, OFF, RED, WHITE, footprint, overlaps, type DmxFixture } from './frame';
+import type { Bands } from './sound';
+import { BLUE, FIXTURE_PRESETS, GREEN, MAX_FIXTURES, OFF, RED, WHITE, footprint, overlaps, type DmxFixture, type FixtureRole } from './frame';
 
 const MAX_PROBE = 16;
 
-const FIELDS: { key: Exclude<keyof DmxFixture, 'name'>; label: string; min: number; max: number }[] = [
+const FIELDS: { key: Exclude<keyof DmxFixture, 'name' | 'role'>; label: string; min: number; max: number }[] = [
   { key: 'address', label: 'Start address', min: 1, max: 512 },
   { key: 'red', label: 'Red channel', min: 1, max: 32 },
   { key: 'green', label: 'Green channel', min: 1, max: 32 },
@@ -16,7 +17,82 @@ const FIELDS: { key: Exclude<keyof DmxFixture, 'name'>; label: string; min: numb
 const pad3 = (n: number) => String(n).padStart(3, '0');
 const nameOf = (f: DmxFixture, i: number) => f.name.trim() || `Light ${i + 1}`;
 
-export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
+const ROLES: { value: FixtureRole; label: string }[] = [
+  { value: 'warning', label: 'Warning light (red time cue)' },
+  { value: 'stage', label: 'Stage light (white set, sound between)' },
+];
+
+const swatch = (c: { r: number; g: number; b: number }) => `rgb(${c.r}, ${c.g}, ${c.b})`;
+
+/** Microphone, white level and live preview for the stage lights. */
+function StageControls({ dmx }: { dmx: DmxOutput }) {
+  const [, force] = useState(0);
+  const [bands, setBands] = useState<Bands | null>(null);
+  const [mics, setMics] = useState<{ id: string; label: string }[]>([]);
+  const mic = dmx.sound;
+  useEffect(() => mic.subscribe(() => force((n) => n + 1)), [mic]);
+  useEffect(() => { void mic.devices().then(setMics); }, [mic, mic.status]);
+  useEffect(() => {
+    const t = setInterval(() => { setBands(mic.levels()); force((n) => n + 1); }, 100);
+    return () => clearInterval(t);
+  }, [mic]);
+
+  const { stageWhite, soundSensitivity } = dmx.config;
+  const level = Math.round(Math.min(1, (bands?.level ?? 0) * (0.5 + ((soundSensitivity - 1) / 9) * 2.5)) * 100);
+  const nowLabel = dmx.stageMode === 'white' ? `White at ${stageWhite}% (act on stage)`
+    : dmx.stageMode === 'sound' ? (mic.status === 'on' ? 'Following the microphone' : 'Slow color fade (microphone off)')
+      : 'Off';
+
+  return (
+    <div className="card mb-3">
+      <div className="row wrap gap-2">
+        <strong>Stage lights</strong>
+        <span className="muted">Now: {nowLabel}</span>
+        <div className="spacer" />
+        {dmx.status === 'connected' && (
+          <span aria-label="Stage light color now" title="Color being sent to the stage lights"
+            className="swatch" style={{ background: swatch(dmx.lastStageColor) }} />
+        )}
+      </div>
+      <p className="muted mt-2 mb-2">
+        White while a comedian is on the clock. During walk-ups, walk-offs, between acts and the closing song they change
+        color with the sound the microphone hears: each beat jumps to a new color and louder music is brighter.
+      </p>
+      <div className="row wrap gap-2 mb-2">
+        {mic.status === 'on'
+          ? <button className="mini" onClick={() => mic.stop()}>Stop microphone</button>
+          : <button className="mini primary" disabled={mic.status === 'unsupported' || mic.status === 'starting'}
+              onClick={() => void mic.start()}>🎤 Start microphone</button>}
+        {mics.length > 1 && (
+          <select value={mic.deviceId} aria-label="Microphone" onChange={(e) => void mic.start(e.target.value)}>
+            <option value="">Default microphone</option>
+            {mics.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        )}
+        {mic.message && <span className={`muted${mic.status === 'error' ? ' text-danger' : ''}`} role="status">{mic.message}</span>}
+      </div>
+      {mic.status === 'on' && (
+        <div className="mb-2" aria-label={`Sound level ${level}%`}>
+          <div className="meter"><i style={{ width: `${level}%` }} /></div>
+        </div>
+      )}
+      <div className="grid g4">
+        <div>
+          <label>White level during a set (%)</label>
+          <input type="number" min={0} max={100} value={stageWhite} aria-label="White level during a set (%)"
+            onChange={(e) => dmx.setConfig({ stageWhite: e.target.value === '' ? 0 : Number(e.target.value) })} />
+        </div>
+        <div>
+          <label>Sound sensitivity (1-10)</label>
+          <input type="range" min={1} max={10} value={soundSensitivity} aria-label="Sound sensitivity (1-10)"
+            onChange={(e) => dmx.setConfig({ soundSensitivity: Number(e.target.value) })} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function DmxPanel({ dmx, warningLightsOn = true }: { dmx: DmxOutput; warningLightsOn?: boolean }) {
   const [, force] = useState(0);
   const [ch, setCh] = useState(1);
   const [note, setNote] = useState('');
@@ -45,7 +121,9 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
 
   const connected = dmx.status === 'connected';
   const pill = dmx.status === 'connected' ? 'ok' : dmx.status === 'error' ? 'err' : '';
-  const lights = fixtures.length === 1 ? 'the light' : 'every light';
+  const warningCount = fixtures.filter((f) => f.role === 'warning').length;
+  const hasStage = fixtures.some((f) => f.role === 'stage');
+  const lights = warningCount === 1 ? 'the warning light' : 'the warning lights';
 
   return (
     <div className="card">
@@ -58,10 +136,10 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
         </span>
       </div>
       <p className="muted mt-2-mb-3">
-        {warnPulseSec > 0
+        {!warningCount ? 'No warning light on the chain.' : !warningLightsOn ? 'Warning lights stay off: the pop-out timer is the time warning.' : warnPulseSec > 0
           ? `At each act's light-warning time ${lights} flashes red for ${warnPulseSec} seconds, then goes off. When time is up it turns red and stays on until the next act.`
           : `At each act's light-warning time ${lights} turns red and stays on through overtime until the next act.`}
-        {' '}It is off the rest of the time.
+        {warningCount > 0 && warningLightsOn && ' It is off the rest of the time.'}
       </p>
 
       <div className="row wrap mb-3">
@@ -79,6 +157,10 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
         </div>
       </div>
 
+      {hasStage
+        ? <StageControls dmx={dmx} />
+        : <p className="muted mt-0">Add a light as a <em>Stage light</em> to get white during sets and sound-reactive color between them.</p>}
+
       <label>Lights on the chain ({fixtures.length})</label>
       <p className="muted mb-2 mt-0">
         Daisy-chain lights with DMX cables: the cable from the PC goes into the first light's <kbd>DMX IN</kbd>, its
@@ -87,9 +169,21 @@ export function DmxPanel({ dmx }: { dmx: DmxOutput }) {
       </p>
       {fixtures.map((f, i) => (
         <div key={i} className="card mb-3">
+          <div className="grid g2 mb-2">
+            <div>
+              <label>Name</label>
+              <input value={f.name} placeholder={`Light ${i + 1}`} aria-label={`Light ${i + 1} name`}
+                onChange={(e) => dmx.updateFixture(i, { name: e.target.value })} />
+            </div>
+            <div>
+              <label>Role</label>
+              <select value={f.role} aria-label={`${nameOf(f, i)} role`}
+                onChange={(e) => dmx.updateFixture(i, { role: e.target.value as FixtureRole })}>
+                {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </select>
+            </div>
+          </div>
           <div className="row wrap gap-2">
-            <input className="minw-170" value={f.name} placeholder={`Light ${i + 1}`} aria-label={`Light ${i + 1} name`}
-              onChange={(e) => dmx.updateFixture(i, { name: e.target.value })} />
             <span className="muted">d{pad3(f.address)}–d{pad3(f.address + footprint(f) - 1)}</span>
             <div className="spacer" />
             <button className="mini" disabled={!connected} onClick={() => lightChannel(i, 1)}>Find channels</button>

@@ -1,7 +1,8 @@
 import {
-  buildFrame, buildProbeFrame, loadDmxConfig, OFF, saveDmxConfig, clampDmxConfig, nextFreeAddress, MAX_FIXTURES,
+  buildFrame, buildProbeFrame, loadDmxConfig, OFF, saveDmxConfig, clampDmxConfig, nextFreeAddress, MAX_FIXTURES, whiteAt,
   type DmxConfig, type DmxFixture, type LightColor,
 } from './frame';
+import { SoundInput } from './sound';
 
 /* Minimal Web Serial typings (not in TypeScript's DOM lib). */
 interface SerialPortLike {
@@ -20,6 +21,9 @@ const serial = (): SerialLike | undefined => (navigator as unknown as { serial?:
 
 export type DmxStatus = 'unsupported' | 'disconnected' | 'connecting' | 'connected' | 'error';
 
+/** What the stage lights do right now: dark, white for a set, or following the microphone. */
+export type StageMode = 'off' | 'white' | 'sound';
+
 const PORT_KEY = 'walkup.dmx.port';
 const FRAME_INTERVAL_MS = 30; // about 33 frames per second
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -32,11 +36,18 @@ export class DmxOutput {
   status: DmxStatus = serial() ? 'disconnected' : 'unsupported';
   message = serial() ? '' : 'Stage-light control needs Chrome or Edge (Web Serial).';
   config: DmxConfig = loadDmxConfig();
+  /** Microphone feeding the stage lights' sound-reactive mode. */
+  readonly sound = new SoundInput();
+  stageMode: StageMode = 'off';
+  /** Last color sent to the stage lights, for the panel's preview swatch. */
+  lastStageColor: LightColor = OFF;
 
   private port?: SerialPortLike;
   private running = false;
   private loopDone: Promise<void> = Promise.resolve();
   private showColor: LightColor = OFF;
+  /** Set while disconnecting so the last frames go out dark. */
+  private dark = false;
   private testColor: LightColor | null = null;
   private probeValues: Record<number, number> | null = null;
   /** Which light on the chain the channel finder is driving. */
@@ -73,8 +84,21 @@ export class DmxOutput {
     this.setConfig({ fixtures: this.config.fixtures.filter((_, i) => i !== index) });
   }
 
-  /** Color requested by the show (red at the light warning, off otherwise). */
+  /** Color requested by the show for the warning lights (red at the light warning, off otherwise). */
   setShowColor(c: LightColor) { this.showColor = c; }
+
+  /** What the show wants from the stage lights. */
+  setStageMode(m: StageMode) {
+    if (m === this.stageMode) return;
+    this.stageMode = m;
+    this.listeners.forEach((f) => f());
+  }
+
+  private stageColor(nowMs: number): LightColor {
+    if (this.stageMode === 'white') return whiteAt(this.config.stageWhite);
+    if (this.stageMode === 'sound') return this.sound.color(nowMs, this.config.soundSensitivity);
+    return OFF;
+  }
 
   /** Temporarily override the light so channels can be checked; reverts by itself. */
   test(c: LightColor, ms = 4000) {
@@ -143,6 +167,7 @@ export class DmxOutput {
     await port.open({ baudRate: 250000, dataBits: 8, stopBits: 2, parity: 'none', flowControl: 'none', bufferSize: 1024 });
     try { localStorage.setItem(PORT_KEY, JSON.stringify(port.getInfo())); } catch { /* ignore */ }
     this.port = port;
+    this.dark = false;
     this.running = true;
     this.set('connected');
     this.loopDone = this.loop(port);
@@ -154,9 +179,11 @@ export class DmxOutput {
     let failure: string | null = null;
     try {
       while (this.running && this.port === port) {
+        const stage = this.dark ? OFF : this.testColor ?? this.stageColor(Date.now());
+        this.lastStageColor = stage;
         const frame = this.probeValues
           ? buildProbeFrame(this.config.fixtures[this.probeFixture] ?? this.config.fixtures[0], this.probeValues)
-          : buildFrame(this.config, this.testColor ?? this.showColor);
+          : buildFrame(this.config, this.dark ? OFF : this.testColor ?? this.showColor, stage);
         await port.setSignals({ break: true });   // BREAK: line held low (at least 88 microseconds)
         await sleep(2);
         await port.setSignals({ break: false });  // mark-after-break
@@ -187,9 +214,9 @@ export class DmxOutput {
     try { await port.close(); } catch { /* already closed */ }
   }
 
-  /** Turn the light off, then release the cable. */
+  /** Turn every light off, then release the cable. */
   async disconnect() {
-    this.showColor = OFF;
+    this.dark = true;
     this.cancelTest();
     await sleep(FRAME_INTERVAL_MS * 2); // let one dark frame go out
     await this.close();

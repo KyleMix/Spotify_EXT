@@ -84,7 +84,14 @@ Chrome's Web Serial, so use **Chrome or Edge** (not Firefox/Safari), on `http://
    - **Chauvet 4BAR Flex:** choose *Chauvet 4BAR Flex (3-CH mode)*, then on the bar's menu set the DMX personality to
      **3-CH** (all four pars together: 1 red, 2 green, 3 blue) and its address to the one the panel shows. Its 15-CH mode
      also works if you set the channels yourself (*Channels in mode* 15, and use *Find channels*).
-5. If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
+5. **Stage lights (white during sets, sound-reactive between):** set a light's **Role** to *Stage light* (the 4BAR Flex
+   preset does this). While a comedian is on the clock it shows white (set the level with *White level during a set*).
+   The rest of the show (walk-up music, walk-off music, between acts, the closing song) it follows the room sound:
+   press **🎤 Start microphone** in the *Stage lights* box, allow the mic, and pick which mic if the PC has more than one.
+   Each beat jumps to a new color and louder sound is brighter; turn *Sound sensitivity* up for a quiet room or a far mic,
+   down if it never settles. With the mic off, stage lights slowly fade through colors instead. The mic has to be started
+   again after reloading the page. Warning lights keep doing the red time cue (or stay off in pop-out timer mode).
+6. If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
 Settings (including older single-light settings, which become the first light on the chain) are saved per browser. If the cable is unplugged mid-show, the timer keeps working and the panel shows
 "Light offline".
 

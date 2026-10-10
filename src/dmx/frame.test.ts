@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildProbeFrame, buildFrame, clampDmxConfig, clampFixture, DEFAULT_DMX_CONFIG, DEFAULT_FIXTURE, FIXTURE_PRESETS, GREEN, lightIsOn,
-  MAX_FIXTURES, nextFreeAddress, OFF, overlaps, RED, slotOf, type DmxFixture,
+  MAX_FIXTURES, nextFreeAddress, OFF, overlaps, RED, slotOf, WHITE, whiteAt, type DmxFixture,
 } from './frame';
 
 const fx = (o: Partial<DmxFixture> = {}): DmxFixture => ({ ...DEFAULT_FIXTURE, ...o });
@@ -36,6 +36,17 @@ describe('buildFrame', () => {
     expect(Array.from(f.slice(1, 8))).toEqual([255, 255, 0, 0, 255, 0, 0]);
     expect(Array.from(buildFrame(cfg, OFF)).every((v) => v === 0)).toBe(true);
   });
+  it('sends warning lights and stage lights their own colors', () => {
+    const cfg = cfgOf(fx({ address: 1 }), fx({ address: 4, role: 'stage' }));
+    const f = buildFrame(cfg, RED, whiteAt(100));
+    expect(Array.from(f.slice(1, 7))).toEqual([255, 0, 0, 255, 255, 255]);
+    const g = buildFrame(cfg, OFF, GREEN);
+    expect(Array.from(g.slice(1, 7))).toEqual([0, 0, 0, 0, 255, 0]);
+  });
+  it('whiteAt scales all three colors', () => {
+    expect(whiteAt(50)).toEqual({ r: 128, g: 128, b: 128 });
+    expect(whiteAt(150)).toEqual(WHITE);
+  });
   it('slotOf is 1-based from the start address', () => {
     expect(slotOf(fx({ address: 10 }), 1)).toBe(10);
     expect(slotOf(fx({ address: 10 }), 3)).toBe(12);
@@ -67,7 +78,13 @@ describe('clampDmxConfig', () => {
     expect(c.fixtures).toHaveLength(1);
     expect(c.fixtures[0]).toMatchObject({ address: 7, red: 2, green: 3, blue: 4, dimmer: 1, channels: 4 });
     expect(c.warnPulseSec).toBe(5);
+    expect(c.fixtures[0].role).toBe('warning');
     expect(clampDmxConfig({}).fixtures).toEqual([DEFAULT_FIXTURE]);
+  });
+  it('defaults and clamps the stage-light settings', () => {
+    expect(clampDmxConfig({})).toMatchObject({ stageWhite: 100, soundSensitivity: 5 });
+    expect(clampDmxConfig({ stageWhite: 400, soundSensitivity: 0 })).toMatchObject({ stageWhite: 100, soundSensitivity: 1 });
+    expect(clampFixture({ role: 'bogus' as never }).role).toBe('warning');
   });
   it('keeps a list of lights and caps how many', () => {
     const c = clampDmxConfig({ fixtures: [fx(), fx({ address: 4, name: '4BAR' })] });
@@ -92,7 +109,7 @@ describe('chain addressing', () => {
   });
   it('has a 4BAR Flex preset for its 3-channel mode', () => {
     const p = FIXTURE_PRESETS.find((x) => x.id === '4bar-flex-3ch');
-    expect(p?.fixture).toMatchObject({ red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 });
+    expect(p?.fixture).toMatchObject({ role: 'stage', red: 1, green: 2, blue: 3, dimmer: 0, channels: 3 });
   });
 });
 
