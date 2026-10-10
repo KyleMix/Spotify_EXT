@@ -17,14 +17,16 @@ export interface Look {
 }
 
 /** Moments in the show that fire a look automatically while Live mode is open. */
-export type ShowMoment = 'walkup' | 'onstage' | 'warning' | 'timeup' | 'between' | 'closing';
+export type ShowMoment = 'preshow' | 'walkup' | 'onstage' | 'warning' | 'timeup' | 'walkoff' | 'between' | 'closing';
 
 export const MOMENTS: { id: ShowMoment; label: string; hint: string }[] = [
+  { id: 'preshow', label: 'Pre-show', hint: 'Live mode open, before the first walk-up' },
   { id: 'walkup', label: 'Walk-up', hint: 'While the walk-up song plays' },
   { id: 'onstage', label: 'On stage', hint: 'While a comedian is on the clock' },
   { id: 'warning', label: 'Light warning', hint: 'For the warning flash length at each act\'s light-warning time' },
   { id: 'timeup', label: "Time's up", hint: 'From the end of the set length until the act ends' },
-  { id: 'between', label: 'Between acts', hint: 'After a set (walk-off song) until the next walk-up' },
+  { id: 'walkoff', label: 'Walk-off', hint: 'While a walk-off song plays after a set' },
+  { id: 'between', label: 'Between acts', hint: 'After a set (once any walk-off song ends) until the next walk-up' },
   { id: 'closing', label: 'End of show', hint: 'After the last act' },
 ];
 
@@ -34,6 +36,8 @@ export interface LooksState {
   cues: Record<ShowMoment, string>;
   /** Key that hands the lights back to the show (releases a look fired by hand). */
   releaseKey?: string;
+  /** Key that toggles blackout. */
+  blackoutKey?: string;
   /** Which set of starting looks this state has seen, so new ones are offered once after an update. */
   version?: number;
 }
@@ -71,7 +75,10 @@ export function defaultLooks(stageWhite = 100): LooksState {
   ];
   return {
     looks,
-    cues: { walkup: 'sound', onstage: 'stage-white', warning: 'warning-red', timeup: 'time-up', between: 'sound', closing: 'rainbow' },
+    cues: {
+      preshow: 'warm', walkup: 'sound', onstage: 'stage-white', warning: 'warning-red', timeup: 'time-up',
+      walkoff: 'sound', between: 'sound', closing: 'rainbow',
+    },
     version: LOOKS_VERSION,
   };
 }
@@ -119,7 +126,8 @@ export function clampLooksState(s: Partial<LooksState>, fallbackWhite = 100): Lo
     if (typeof v === 'string') cues[m] = v === '' || ids.has(v) ? v : '';
     else if (!ids.has(cues[m])) cues[m] = '';
   }
-  return { looks, cues, releaseKey: typeof s.releaseKey === 'string' && s.releaseKey ? s.releaseKey : undefined, version: LOOKS_VERSION };
+  const key = (k: unknown) => (typeof k === 'string' && k ? k : undefined);
+  return { looks, cues, releaseKey: key(s.releaseKey), blackoutKey: key(s.blackoutKey), version: LOOKS_VERSION };
 }
 
 /** Which look a key fires, if any. */
@@ -135,10 +143,15 @@ export const momentsUsing = (s: LooksState, lookId: string) => MOMENTS.filter((m
 export function showMoment(opts: {
   done: boolean; phase: 'cued' | 'walkup' | 'timing'; elapsedMs: number; setLengthMin: number; warnAtMin: number;
   pulseSec: number; redCues: boolean;
+  /** Live mode is open but the show hasn't started (no walk-up played yet). */
+  preshow?: boolean;
+  /** A walk-off song is playing after a set. */
+  walkOff?: boolean;
 }): ShowMoment {
   if (opts.done) return 'closing';
+  if (opts.preshow && opts.phase === 'cued') return 'preshow';
   if (opts.phase === 'walkup') return 'walkup';
-  if (opts.phase === 'cued') return 'between';
+  if (opts.phase === 'cued') return opts.walkOff ? 'walkoff' : 'between';
   if (!opts.redCues) return 'onstage';
   const totalMs = opts.setLengthMin * 60_000;
   if (opts.elapsedMs >= totalMs) return 'timeup';

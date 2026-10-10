@@ -357,3 +357,8 @@ body:has(.tw){margin:0;background:#000}
 .music-row .meter>i{transition:width .05s linear}
 .music-beat{display:flex;flex-direction:column;align-items:center;gap:var(--s1)}
 .beat-dot{width:36px;height:36px;border-radius:50%;border:1px solid var(--line-strong);transition:transform .05s linear}
+.dock .dock-now{font-variant-numeric:tabular-nums}
+.dock-body{align-items:flex-end;gap:var(--s6)}
+.dock-master{min-width:180px;flex:0 1 240px}
+.dock-looks{display:flex;flex-wrap:wrap;gap:var(--s1)}
+.dock-looks button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}

@@ -6,7 +6,7 @@ import { useEngine, useTicker } from './useEngine';
 import { KeyBinder, LayerPreview } from './controls';
 
 /** Live view of what every pod/par shows right now. */
-function RigPreview({ engine }: { engine: LightEngine }) {
+export function RigPreview({ engine }: { engine: LightEngine }) {
   useTicker(80);
   if (!engine.rig.fixtures.length) return null;
   return (
@@ -57,8 +57,9 @@ export function ConsoleTab({ engine }: { engine: LightEngine }) {
               onChange={(e) => engine.setMaster(Number(e.target.value) / 100)} />
           </div>
           <div>
-            <label>Key for "Back to show"</label>
-            <KeyBinder value={releaseKey} label="Back to show" onChange={(k) => engine.setReleaseKey(k)} />
+            <label>Keys</label>
+            <div className="row wrap gap-2"><span className="minw-90">Back to show</span><KeyBinder value={releaseKey} label="Back to show" onChange={(k) => engine.setReleaseKey(k)} /></div>
+            <div className="row wrap gap-2 mt-1"><span className="minw-90">Blackout</span><KeyBinder value={engine.looksState.blackoutKey} label="Blackout" onChange={(k) => engine.setBlackoutKey(k)} /></div>
           </div>
         </div>
         <div className="mt-3"><RigPreview engine={engine} /></div>

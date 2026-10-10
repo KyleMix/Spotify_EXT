@@ -5,6 +5,16 @@ const base = { done: false, phase: 'timing' as const, setLengthMin: 10, warnAtMi
 const min = 60_000;
 
 describe('showMoment', () => {
+  it('pre-show until the first walk-up, then walk-off while a walk-off song plays', () => {
+    expect(showMoment({ ...base, phase: 'cued', preshow: true, elapsedMs: 0 })).toBe('preshow');
+    expect(showMoment({ ...base, phase: 'walkup', preshow: true, elapsedMs: 0 })).toBe('walkup');
+    expect(showMoment({ ...base, phase: 'cued', walkOff: true, elapsedMs: 0 })).toBe('walkoff');
+  });
+  it('fills cues added later (pre-show, walk-off) with their defaults on old saved state', () => {
+    const s = clampLooksState({ ...defaultLooks(), cues: { walkup: 'sound' } as never });
+    expect(s.cues.preshow).toBe('warm');
+    expect(s.cues.walkoff).toBe('sound');
+  });
   it('walk-up, between acts and end of show', () => {
     expect(showMoment({ ...base, phase: 'walkup', elapsedMs: 0 })).toBe('walkup');
     expect(showMoment({ ...base, phase: 'cued', elapsedMs: 0 })).toBe('between');
@@ -30,7 +40,10 @@ describe('showMoment', () => {
 describe('looks state', () => {
   it('starts with looks for every show moment', () => {
     const s = defaultLooks();
-    expect(s.cues).toEqual({ walkup: 'sound', onstage: 'stage-white', warning: 'warning-red', timeup: 'time-up', between: 'sound', closing: 'rainbow' });
+    expect(s.cues).toEqual({
+      preshow: 'warm', walkup: 'sound', onstage: 'stage-white', warning: 'warning-red', timeup: 'time-up',
+      walkoff: 'sound', between: 'sound', closing: 'rainbow',
+    });
     expect(s.looks.find((l) => l.id === 'warning-red')?.fadeMs).toBe(0);
   });
   it('carries the old white level into the Stage white look', () => {
@@ -39,7 +52,7 @@ describe('looks state', () => {
   it('cleans saved state: unknown effects, out-of-range values, cues to missing looks', () => {
     const s = clampLooksState({
       looks: [{ id: 'a', name: 'A', fadeMs: 99999, all: { effect: 'bogus' as never, colors: [{ r: 300, g: -1, b: 5 }], speed: 50, intensity: 2 }, perFixture: {} }],
-      cues: { walkup: 'a', onstage: 'gone', warning: '', timeup: 'a', between: 'a', closing: 'a' },
+      cues: { preshow: '', walkup: 'a', onstage: 'gone', warning: '', timeup: 'a', walkoff: '', between: 'a', closing: 'a' },
     });
     expect(s.looks[0]).toMatchObject({ fadeMs: 20000, all: { effect: 'solid', colors: [{ r: 255, g: 0, b: 5 }], speed: 10, intensity: 1 } });
     expect(s.cues.onstage).toBe('');

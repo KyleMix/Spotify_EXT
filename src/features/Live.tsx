@@ -10,6 +10,8 @@ import { TestRun } from './TestRun';
 import { RemotePanel } from './RemotePanel';
 import type { LightEngine } from '../lights/engine';
 import { ConnectionBar } from '../lights/ui/LightsScreen';
+import { LightsDock } from '../lights/ui/LightsDock';
+import { lightingReadiness } from '../lights/readiness';
 import { showMoment } from '../lights/looks';
 import { OFF, RED } from '../lights/color';
 import { TIMER_CHANNEL, TIMER_WINDOW_NAME, parseMessage, type TimerSnapshot } from './timerSync';
@@ -39,6 +41,8 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const [lastKey, setLastKey] = useState('');
   const [settings, setSettings] = useState<AudioSettings>(loadSettings);
   const [closingPlaying, setClosingPlaying] = useState(false);
+  // A walk-off song is playing after a set (the lights' Walk-off moment); cleared when the music goes quiet.
+  const [walkOffPlaying, setWalkOffPlaying] = useState(false);
   // A pre-show test run is playing: the real show controls are locked until it stops.
   const [testing, setTesting] = useState(false);
   const [testStop, setTestStop] = useState(0);
@@ -76,6 +80,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   useEffect(() => {
     if (!player) return;
     player.onSilent = () => {
+      setWalkOffPlaying(false);
       if (!armedRef.current || phaseRef.current !== 'walkup' || !settingsRef.current.autoStartTimer) return;
       armedRef.current = false;
       setStartedAt(Date.now());
@@ -97,6 +102,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const moment = showMoment({
     done, phase, elapsedMs: elapsed, setLengthMin: slot?.setLengthMin ?? 0, warnAtMin: slot?.warnAtMin ?? 0,
     pulseSec: dmx.show.warnPulseSec, redCues: lightMode,
+    preshow: idx === 0 && showStart === null, walkOff: walkOffPlaying,
   });
   useEffect(() => { dmx.setShowMoment(moment); }, [dmx, moment]);
   useEffect(() => () => dmx.setShowMoment(null), [dmx]);
@@ -146,6 +152,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const playWalkup = () => guard(async () => {
     if (!slot) return;
     if (showStart === null) setShowStart(Date.now());
+    setWalkOffPlaying(false);
     if (slot.track && player && ready) {
       await player.unlock();
       await player.play(slot.track, slot.startOffsetMs, slot.cueLengthMs);
@@ -167,6 +174,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
         // Walk-off is comedians only; hosts and breaks just fade out.
         if (slot && hasWalkOff(slot)) {
           await player.play(slot.walkOffTrack!, slot.walkOffStartMs ?? 0, slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs, 400);
+          setWalkOffPlaying(true);
         } else {
           fadeOutNow();
         }
@@ -175,9 +183,10 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
     setIdx((i) => i + 1);
     setPhase('cued');
   });
-  const skip = () => guard(async () => { armedRef.current = false; fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
+  const skip = () => guard(async () => { armedRef.current = false; setWalkOffPlaying(false); fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
   const back = () => {
     armedRef.current = false;
+    setWalkOffPlaying(false);
     if (closingPlaying) { fadeOutNow(); setClosingPlaying(false); }
     setIdx((i) => Math.max(0, i - 1));
     setPhase('cued');
@@ -196,7 +205,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const primaryRef = useRef(primary);
   primaryRef.current = primary;
 
-  const fade = () => guard(async () => { setTestStop((n) => n + 1); setClosingPlaying(false); fadeOutNow(); });
+  const fade = () => guard(async () => { setTestStop((n) => n + 1); setClosingPlaying(false); setWalkOffPlaying(false); fadeOutNow(); });
   const panic = () => guard(async () => { setTestStop((n) => n + 1); await player?.panic(); });
   const actions: Record<Action, () => unknown> = {
     next: primary, fade, panic,
@@ -275,6 +284,12 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
           Ready check: {ready ? '✅ Spotify ready' : '⚠️ Spotify not ready (timer works, music is off)'} ·{' '}
           {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
           {badCount > 0 && <> · <span className="text-danger">⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
+          {lightingReadiness({
+            rig: dmx.rig, looks: dmx.looksState, connected: dmx.status === 'connected', micOn: dmx.sound.status === 'on',
+            blackout: dmx.blackout, redCues: lightMode,
+          }).map((item) => (
+            <span key={item.text}> · <span className={item.ok ? '' : 'text-danger'}>{item.ok ? '✅' : '⚠️'} {item.text}</span></span>
+          ))}
         </div>
       )}
       <div className="card stage">
@@ -331,6 +346,8 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
           </>
         )}
       </div>
+
+      <LightsDock engine={dmx} onOpenLights={onOpenLights} />
 
       <div className="grid g2">
         <div className="card next">

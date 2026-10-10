@@ -204,7 +204,8 @@ export class LightEngine {
     const i = looks.findIndex((x) => x.id === look.id);
     if (i >= 0) looks[i] = look; else looks.push(look);
     const releaseKey = this.looksState.releaseKey === look.key ? undefined : this.looksState.releaseKey;
-    this.setLooksState({ ...this.looksState, looks, releaseKey });
+    const blackoutKey = this.looksState.blackoutKey === look.key ? undefined : this.looksState.blackoutKey;
+    this.setLooksState({ ...this.looksState, looks, releaseKey, blackoutKey });
     return look.id;
   }
 
@@ -230,12 +231,22 @@ export class LightEngine {
   /** Bind a key to "back to show"; it is taken off any look that had it. */
   setReleaseKey(code: string | undefined) {
     const looks = this.looksState.looks.map((l) => (code && l.key === code ? { ...l, key: undefined } : l));
-    this.setLooksState({ ...this.looksState, looks, releaseKey: code });
+    const blackoutKey = code && this.looksState.blackoutKey === code ? undefined : this.looksState.blackoutKey;
+    this.setLooksState({ ...this.looksState, looks, releaseKey: code, blackoutKey });
   }
 
-  /** A key press from anywhere in the app: fires the look bound to it, or releases. Returns whether it was used. */
+  /** Bind a key to toggle blackout; it is taken off any look or the release key that had it. */
+  setBlackoutKey(code: string | undefined) {
+    const looks = this.looksState.looks.map((l) => (code && l.key === code ? { ...l, key: undefined } : l));
+    const releaseKey = code && this.looksState.releaseKey === code ? undefined : this.looksState.releaseKey;
+    this.setLooksState({ ...this.looksState, looks, releaseKey, blackoutKey: code });
+  }
+
+  /** A key press from anywhere in the app: fires the look bound to it, releases, or toggles blackout. Returns whether it was used. */
   handleKey(code: string): boolean {
-    if (code && code === this.looksState.releaseKey) { this.releaseLook(); return true; }
+    if (!code) return false;
+    if (code === this.looksState.blackoutKey) { this.setBlackout(!this.blackout); return true; }
+    if (code === this.looksState.releaseKey) { this.releaseLook(); return true; }
     const look = this.looksState.looks.find((l) => l.key === code);
     if (!look) return false;
     this.fireLook(look.id);
