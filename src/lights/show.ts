@@ -8,11 +8,13 @@ export interface ShowLightSettings {
   warnPulseSec: number;
   /** White level from the previous version; only used to seed the Stage white look. */
   stageWhite: number;
-  /** How strongly stage lights react to the microphone, 1 (only loud music) to 10 (reacts to quiet sound). */
+  /** How strongly sound looks react to the microphone, 1 (only loud music) to 10 (reacts to quiet sound). */
   soundSensitivity: number;
+  /** Follow the recent peak level so quiet and loud rooms react alike. */
+  autoGain: boolean;
 }
 
-export const DEFAULT_SHOW_SETTINGS: ShowLightSettings = { warnPulseSec: 3, stageWhite: 100, soundSensitivity: 5 };
+export const DEFAULT_SHOW_SETTINGS: ShowLightSettings = { warnPulseSec: 3, stageWhite: 100, soundSensitivity: 5, autoGain: true };
 
 const int = (v: unknown, lo: number, hi: number, fallback: number) => {
   const n = Math.round(Number(v));
@@ -25,6 +27,7 @@ export function clampShowSettings(s: Partial<ShowLightSettings>): ShowLightSetti
     warnPulseSec: int(s.warnPulseSec, 0, 30, d.warnPulseSec),
     stageWhite: int(s.stageWhite, 0, 100, d.stageWhite),
     soundSensitivity: int(s.soundSensitivity, 1, 10, d.soundSensitivity),
+    autoGain: s.autoGain !== false,
   };
 }
 

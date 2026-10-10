@@ -97,11 +97,15 @@ shows frames per second (below 20 can flicker) and whether frames are sent from 
 - **Universe monitor:** the live value of every DMX channel, colored by which light owns it.
 
 **Looks tab:** a look is a saved lighting state: an effect for all lights (*Solid*, *Pulse*, *Chase* across every pod and
-par of the rig, *Rainbow*, *Strobe* capped at 10 flashes a second with a photosensitivity warning, *Sound reactive*, *Off*),
+par of the rig, *Rainbow*, *Strobe* capped at 10 flashes a second with a photosensitivity warning, *Off*; and music effects that follow the
+microphone: *Beat colors*, *Beat chase* (one pod/par steps along the rig per beat), *Ripple* (a wave crosses the rig on
+each beat), *Music meter* (pods fill green→red with the volume), *Bass / mid / treble* (thirds of the rig follow each band)
+and *Color to music* (your colors, brightness following the volume)),
 colors, speed, level and a **fade-in time**, plus optional per-light settings (e.g. one bar red, the other white). Edits save
 as you go; *Preview on the rig* shows it live. Give a look a **key** to fire it from any screen (Stream Deck *Hotkey* on
 F13–F24 works well); keys Live mode already uses are refused. Starting looks: Stage white, Sound reactive, Warning flash,
-Time's up, Warm wash, Rainbow, Blue chase.
+Time's up, Warm wash, Rainbow, Blue chase, Beat chase, Ripple, Music meter, Bass / mid / treble (the music looks are
+added once to looks saved by earlier versions).
 
 **Console tab:** big buttons fire looks by hand. A fired look holds over the show until you click it again, fire another or
 press **Back to show** (which can have a key too). **Master dimmer** scales every look. A live preview shows each pod/par.
@@ -109,8 +113,10 @@ press **Back to show** (which can have a key too). **Master dimmer** scales ever
 **Show tab:** which look each moment fires while Live mode is open: *Walk-up*, *On stage*, *Light warning* (lasts
 *Light warning lasts* seconds, then back to On stage), *Time's up* (until the act ends), *Between acts* and *End of show*.
 Defaults: sound reactive for walk-ups and between acts, Stage white on stage, red flash at the warning, red pulse when time's
-up, rainbow at the end. In **Timer only** mode the Light warning and Time's up cues aren't used: the lights never go red. The **microphone** for sound-reactive looks is here too
-(start it after each reload; with it off, sound looks fade slowly through colors). With Live mode closed, the lights are
+up, rainbow at the end. In **Timer only** mode the Light warning and Time's up cues aren't used: the lights never go red. The **microphone** for music looks is here too
+(start it after each reload). Its meter shows level, bass, mid, treble, a beat light and the gain. **Auto-adjust to the room**
+(on by default) follows the recent peak so quiet and loud rooms react alike; *Sound sensitivity* nudges it (5 = normal).
+Very quiet sound is ignored so room noise doesn't flicker the lights. With the mic off, music looks run a slow idle pattern. With Live mode closed, the lights are
 dark unless you fire a look.
 
 If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.

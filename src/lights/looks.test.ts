@@ -47,3 +47,18 @@ describe('looks state', () => {
     expect(momentsUsing(s, 'a').map((m) => m.id)).toEqual(['walkup', 'timeup', 'between', 'closing']);
   });
 });
+
+describe('looks upgrades', () => {
+  it('adds the music looks once to looks saved before they existed', () => {
+    const old = { looks: [{ id: 'mine', name: 'Mine', fadeMs: 0, all: { effect: 'solid', colors: [], speed: 1, intensity: 1 }, perFixture: {} }] };
+    const s = clampLooksState(old as never);
+    expect(s.looks.map((l) => l.id)).toEqual(['mine', 'beat-chase', 'ripple', 'meter', 'bands']);
+    expect(s.version).toBe(2);
+    const deleted = clampLooksState({ ...s, looks: s.looks.filter((l) => l.id !== 'ripple') });
+    expect(deleted.looks.some((l) => l.id === 'ripple')).toBe(false); // stays deleted
+  });
+  it('keeps the new music effects when loading', () => {
+    const s = clampLooksState({ looks: [{ id: 'x', name: 'X', fadeMs: 0, all: { effect: 'ripple', colors: [], speed: 2, intensity: 1 }, perFixture: {} }], version: 2 } as never);
+    expect(s.looks[0].all.effect).toBe('ripple');
+  });
+});

@@ -201,7 +201,7 @@ Looks with fades, per-pixel effects, priority stack, console with hotkeys.
 **Done when:** you can build *Walk-up*, *On stage* and *Time's up* looks and fire them from the console or Stream
 Deck, with smooth fades and no flicker for 30 minutes straight.
 
-### Phase 3: Sound
+### Phase 3: Sound ✅ built (needs confirming in the room)
 Mic input moved onto the effects engine, sound effects per pixel, sensitivity and auto-gain, a meter.
 **Done when:** the sound look visibly follows a song's beat on both bars in the room.
 
@@ -220,6 +220,11 @@ Spotify move to sit around the lighting screens.
 - **Phase 1 is in `src/lights/`:** `profiles.ts` (light library), `patch.ts` (rig, checks, DIP helper, migration),
   `render.ts` (looks → channel values, rig check), `drivers.ts` / `session.ts` / `dmx.worker.ts` / `link.ts` (output
   with worker and page fallback), `engine.ts` (priorities, tester, rig check, show hooks), `ui/` (Lights screen).
+- **Phase 3 is in `src/lights/`:** `sound.ts` `AudioAnalyzer` (auto-gain with a 6 s peak memory, noise gate, band
+  envelopes, beat detection with a 250 ms minimum gap, idle pattern without a mic) and six music effects in `effects.ts`
+  (beat colors, beat chase, ripple, music meter, bass/mid/treble, color to music), all pure and tested. Checked end to end
+  with a synthetic 120 BPM kick-drum track fed in as the microphone: 10 beats per 5 s, beat chase stepping one pod per beat
+  across both bars.
 - **Still open:** question 5 below, and the Neo-Slim's real channel layout (run the channel tester on it).
 
 ## 7. Open questions

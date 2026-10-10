@@ -351,3 +351,9 @@ body:has(.tw){margin:0;background:#000}
 }
 .looks-pick span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .cue-row.unused{opacity:.55}
+.music-meter{display:flex;gap:var(--s5);align-items:center;flex-wrap:wrap;margin:var(--s2) 0}
+.music-bars{display:grid;gap:4px;flex:1;min-width:220px;max-width:460px}
+.music-row{display:grid;grid-template-columns:56px 1fr;gap:var(--s2);align-items:center;font-size:var(--fs-sm)}
+.music-row .meter>i{transition:width .05s linear}
+.music-beat{display:flex;flex-direction:column;align-items:center;gap:var(--s1)}
+.beat-dot{width:36px;height:36px;border-radius:50%;border:1px solid var(--line-strong);transition:transform .05s linear}

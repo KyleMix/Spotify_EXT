@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { LightEngine } from '../engine';
 import { MOMENTS } from '../looks';
-import type { Bands } from '../sound';
-import { useEngine } from './useEngine';
+import { hsvToRgb } from '../sound';
+import { cssColor } from '../color';
+import { EFFECTS } from '../effects';
+import { useEngine, useTicker } from './useEngine';
 import { loadSettings, saveSettings, type WarningMode } from '../../features/settings';
 
 /** Which look each moment of the show fires, the warning flash length, and the microphone for sound-reactive looks. */
@@ -10,7 +12,6 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
   useEngine(engine);
   const mic = engine.sound;
   const [, force] = useState(0);
-  const [bands, setBands] = useState<Bands | null>(null);
   const [mics, setMics] = useState<{ id: string; label: string }[]>([]);
   // Shared with Live mode's Setup (only one of the two screens is open at a time, so storage keeps them in step).
   const [warningMode, setWarningMode] = useState<WarningMode>(() => loadSettings().warningMode);
@@ -19,15 +20,11 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
   const unused = (id: string) => timerOnly && (id === 'warning' || id === 'timeup');
   useEffect(() => mic.subscribe(() => force((n) => n + 1)), [mic]);
   useEffect(() => { void mic.devices().then(setMics); }, [mic, mic.status]);
-  useEffect(() => {
-    const t = setInterval(() => setBands(mic.levels()), 100);
-    return () => clearInterval(t);
-  }, [mic]);
 
-  const { warnPulseSec, soundSensitivity } = engine.show;
+  const { warnPulseSec, soundSensitivity, autoGain } = engine.show;
   const { looks, cues } = engine.looksState;
-  const level = Math.round(Math.min(1, (bands?.level ?? 0) * (0.5 + ((soundSensitivity - 1) / 9) * 2.5)) * 100);
-  const usesSound = looks.some((l) => (l.all.effect === 'sound' || Object.values(l.perFixture).some((p) => p.effect === 'sound')) && Object.values(cues).includes(l.id));
+  const isMusic = (id: string) => !!EFFECTS.find((e) => e.id === id)?.music;
+  const usesSound = looks.some((l) => (isMusic(l.all.effect) || Object.values(l.perFixture).some((p) => isMusic(p.effect))) && Object.values(cues).includes(l.id));
 
   return (
     <>
@@ -76,9 +73,9 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
       <div className="card">
         <div className="row wrap">
           <h2 className="m-0">Microphone</h2>
-          <span className="muted">for Sound reactive looks{usesSound ? '' : ' (no show cue uses one right now)'}</span>
+          <span className="muted">for music looks{usesSound ? '' : ' (no show cue uses one right now)'}</span>
         </div>
-        <p className="muted mt-2">Point it at the speakers. Each beat jumps to a new color and louder is brighter. With the mic off, sound looks fade slowly through colors.</p>
+        <p className="muted mt-2">Point it at the speakers. Music looks (Beat colors, Beat chase, Ripple, Music meter, Bass / mid / treble, Color to music) follow it. With the mic off they run a slow idle pattern instead.</p>
         <div className="row wrap gap-2 mb-2">
           {mic.status === 'on'
             ? <button className="mini" onClick={() => mic.stop()}>Stop microphone</button>
@@ -91,17 +88,53 @@ export function ShowTab({ engine }: { engine: LightEngine }) {
           )}
           {mic.message && <span className={`muted${mic.status === 'error' ? ' text-danger' : ''}`} role="status">{mic.message}</span>}
         </div>
-        {mic.status === 'on' && (
-          <div className="mb-2" aria-label={`Sound level ${level}%`}><div className="meter"><i style={{ width: `${level}%` }} /></div></div>
-        )}
-        <div className="grid g3">
+        {mic.status === 'on' && <MusicMeter engine={engine} />}
+        <div className="grid g3 mt-2">
           <div>
-            <label>Sound sensitivity (1-10)</label>
+            <label>Sound sensitivity ({soundSensitivity})</label>
             <input type="range" min={1} max={10} value={soundSensitivity} aria-label="Sound sensitivity (1-10)"
               onChange={(e) => engine.setShowSettings({ soundSensitivity: Number(e.target.value) })} />
           </div>
+          <div>
+            <label>Volume</label>
+            <label className="check">
+              <input type="checkbox" checked={autoGain} onChange={(e) => engine.setShowSettings({ autoGain: e.target.checked })} />
+              Auto-adjust to the room
+            </label>
+          </div>
         </div>
+        <p className="muted mt-2 mb-0">
+          {autoGain
+            ? 'Auto-adjust follows how loud the room has been over the last few seconds, so quiet and loud rooms react alike. Raise sensitivity if the lights barely move, lower it if they never settle.'
+            : 'Fixed volume: raise sensitivity for a quiet room or a far-away mic, lower it if the lights are always at full.'}
+          {' '}Very quiet sound (room noise) is ignored.
+        </p>
       </div>
     </>
+  );
+}
+
+/** Live readout of what the analyser hears: overall level, the three bands, the beat light and the gain. */
+function MusicMeter({ engine }: { engine: LightEngine }) {
+  useTicker(60);
+  const a = engine.audio;
+  if (!a?.live) return null;
+  const bar = (label: string, v: number) => (
+    <div className="music-row" key={label}>
+      <span className="muted">{label}</span>
+      <div className="meter"><i style={{ width: `${Math.round(v * 100)}%` }} /></div>
+    </div>
+  );
+  return (
+    <div className="music-meter" aria-label={`Sound level ${Math.round(a.level * 100)}%`}>
+      <div className="music-bars">
+        {bar('Level', a.level)}{bar('Bass', a.bass)}{bar('Mid', a.mid)}{bar('Treble', a.treble)}
+      </div>
+      <div className="music-beat">
+        <span className="beat-dot" style={{ background: cssColor(hsvToRgb(a.hue, 1, 0.25 + 0.75 * a.flash)), transform: `scale(${1 + 0.4 * a.flash})` }} />
+        <span className="muted">beat {a.beatCount}</span>
+        <span className="muted">gain ×{engine.sound.analyzer.gain.toFixed(1)}</span>
+      </div>
+    </div>
   );
 }
