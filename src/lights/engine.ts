@@ -17,7 +17,7 @@ import {
 import { clampProfile, pixelCount, type FixtureProfile } from './profiles';
 import { checkLook, checkSteps, renderUniverse, usedSlots, type CheckStep, type FixtureLook, type RawOverride } from './render';
 import { clampShowSettings, loadShowSettings, saveShowSettings, type ShowLightSettings } from './show';
-import { SoundInput } from './sound';
+import { SoundInput, type AudioFeatures } from './sound';
 import { samePort, serialApi, type DriverId, type PortInfo } from './drivers';
 import type { OutputStatus } from './session';
 import { clampLook, clampLooksState, loadLooks, momentsUsing, saveLooks, type Look, type LooksState, type ShowMoment } from './looks';
@@ -58,6 +58,8 @@ export class LightEngine {
   check: CheckState | null = null;
   /** Where the show is (set by Live mode; null when Live mode is closed). */
   moment: ShowMoment | null = null;
+  /** What the music was doing last frame, for the meter. */
+  audio: AudioFeatures | null = null;
   /** A look fired by hand from the console or a hotkey; it holds until released. */
   manualLookId: string | null = null;
 
@@ -92,7 +94,7 @@ export class LightEngine {
   stop() { clearInterval(this.timer); this.timer = undefined; }
 
   /** Every light's pixel colors under the active look right now, before fades. */
-  private lookColors(look: Look | undefined, nowMs: number, sound: LightColor): Record<string, LightColor[]> {
+  private lookColors(look: Look | undefined, nowMs: number, audio: AudioFeatures): Record<string, LightColor[]> {
     const out: Record<string, LightColor[]> = {};
     const counts = this.rig.fixtures.map((f) => { const m = modeOf(this.rig, f); return m ? pixelCount(m) : 0; });
     const globalCount = counts.reduce((a, b) => a + b, 0);
@@ -100,7 +102,7 @@ export class LightEngine {
     this.rig.fixtures.forEach((f, fi) => {
       const layer = look ? look.perFixture[f.id] ?? look.all : null;
       out[f.id] = Array.from({ length: counts[fi] }, (_, pixel) => {
-        const c = layer ? effectColor(layer, { tMs: nowMs, pixel, globalIndex: globalIndex + pixel, globalCount, sound }) : OFF;
+        const c = layer ? effectColor(layer, { tMs: nowMs, pixel, globalIndex: globalIndex + pixel, globalCount, audio }) : OFF;
         return c;
       });
       globalIndex += counts[fi];
@@ -114,14 +116,15 @@ export class LightEngine {
     const step = this.check?.steps[this.check.index];
     if (step) { looks[step.fixtureId] = checkLook(step); return { looks, solo: step.fixtureId }; }
 
-    // The sound colorizer advances once per frame, whichever lights use it.
-    const sound = this.sound.color(nowMs, this.show.soundSensitivity);
+    // The audio analyser advances once per frame, whichever lights use it.
+    const audio = this.sound.features(nowMs, { sensitivity: this.show.soundSensitivity, autoGain: this.show.autoGain });
+    this.audio = audio;
     const activeId = this.activeLookId;
     const look = activeId ? this.looksState.looks.find((l) => l.id === activeId) : undefined;
     if (activeId !== this.fade.targetId) {
       this.fade = { targetId: activeId, from: this.output, startedAt: nowMs, ms: look ? look.fadeMs : RELEASE_FADE_MS };
     }
-    const target = this.lookColors(look, nowMs, sound);
+    const target = this.lookColors(look, nowMs, audio);
     const k = this.fade.ms <= 0 ? 1 : (nowMs - this.fade.startedAt) / this.fade.ms;
     const output: Record<string, LightColor[]> = {};
     for (const f of this.rig.fixtures) {

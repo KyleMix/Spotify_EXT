@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { LightColor } from '../color';
 import { EFFECTS, effectColor, type Layer } from '../effects';
+import type { AudioFeatures } from '../sound';
 import { DEFAULT_BINDINGS, keyLabel, loadBindings, resolveAction, ACTIONS } from '../../features/clicker';
 
 export const toHex = (c: LightColor) => `#${[c.r, c.g, c.b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
@@ -12,12 +13,17 @@ const DEFAULT_COLORS: LightColor[] = [
   { r: 255, g: 255, b: 255 }, { r: 0, g: 0, b: 0 }, { r: 255, g: 0, b: 200 }, { r: 0, g: 200, b: 255 },
 ];
 
+/** A frozen moment of music for the static look previews: fairly loud, two beats in, a purple beat color. */
+const PREVIEW_AUDIO: AudioFeatures = {
+  level: 0.7, bass: 0.9, mid: 0.6, treble: 0.3, beat: false, beatCount: 1, lastBeatMs: -150, flash: 0.5, hue: 0.78, live: true,
+};
+
 /** Small strip showing what a layer looks like across four pixels right now (static for moving effects). */
 export function LayerPreview({ layer }: { layer: Layer }) {
   return (
     <span className="look-preview" aria-hidden="true">
       {Array.from({ length: 4 }, (_, i) => {
-        const c = effectColor(layer, { tMs: 0, pixel: i, globalIndex: i, globalCount: 4, sound: { r: 120, g: 0, b: 255 } });
+        const c = effectColor(layer, { tMs: 0, pixel: i, globalIndex: i, globalCount: 4, audio: PREVIEW_AUDIO });
         return <i key={i} style={{ background: `rgb(${c.r}, ${c.g}, ${c.b})` }} />;
       })}
     </span>
@@ -28,7 +34,7 @@ export function LayerPreview({ layer }: { layer: Layer }) {
 export function LayerEditor({ layer, onChange, label }: { layer: Layer; onChange: (l: Layer) => void; label: string }) {
   const fx = EFFECTS.find((e) => e.id === layer.effect) ?? EFFECTS[0];
   // Chase and strobe always use their fixed color slots; solid and pulse use as many colors as you add (1-4).
-  const fixed = layer.effect === 'chase' || layer.effect === 'strobe';
+  const fixed = layer.effect === 'chase' || layer.effect === 'strobe' || layer.effect === 'beat-chase' || layer.effect === 'bands';
   const count = fixed ? fx.usesColors : Math.min(fx.usesColors, Math.max(1, layer.colors.length));
   const colors = Array.from({ length: count }, (_, i) => layer.colors[i] ?? DEFAULT_COLORS[i]);
   const setColor = (i: number, c: LightColor) => {
@@ -45,12 +51,17 @@ export function LayerEditor({ layer, onChange, label }: { layer: Layer; onChange
               const next = EFFECTS.find((x) => x.id === e.target.value)!;
               onChange({ ...layer, effect: next.id, colors: Array.from({ length: next.usesColors }, (_, i) => layer.colors[i] ?? DEFAULT_COLORS[i]) });
             }}>
-            {EFFECTS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+            <optgroup label="Effects">
+              {EFFECTS.filter((e) => !e.music).map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+            </optgroup>
+            <optgroup label="Music (microphone)">
+              {EFFECTS.filter((e) => e.music).map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+            </optgroup>
           </select>
         </div>
         {fx.usesColors > 0 && (
           <div>
-            <label>{layer.effect === 'chase' ? 'Moving / background' : count > 1 ? 'Colors (alternate across pods)' : 'Color'}</label>
+            <label>{layer.effect === 'chase' || layer.effect === 'beat-chase' ? 'Moving / background' : layer.effect === 'bands' ? 'Bass / mid / treble' : count > 1 ? 'Colors (alternate across pods)' : 'Color'}</label>
             <div className="row gap-2">
               {colors.map((c, i) => (
                 <input key={i} type="color" className="color-in" value={toHex(c)} aria-label={`${label} color ${i + 1}`}

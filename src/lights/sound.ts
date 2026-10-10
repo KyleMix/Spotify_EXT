@@ -27,44 +27,101 @@ export function hsvToRgb(h: number, s: number, v: number): LightColor {
   return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
 }
 
-/** Slow color fade used when the microphone is off, so the stage lights still look alive between acts. */
-export const idleColor = (nowMs: number): LightColor => hsvToRgb((nowMs / 20000) % 1, 1, 0.5);
+/** What the music is doing this frame, after gain. Sound effects read only this, so they stay pure and testable. */
+export interface AudioFeatures {
+  /** Loudness 0-1: overall, and per band. Rise instantly, fall smoothly. */
+  level: number;
+  bass: number;
+  mid: number;
+  treble: number;
+  /** A beat (bass hit) started this frame. */
+  beat: boolean;
+  /** Beats so far, and when the last one hit. */
+  beatCount: number;
+  lastBeatMs: number;
+  /** 1 at a beat, fading to 0 over about a quarter second. */
+  flash: number;
+  /** Beat color, 0-1 around the color wheel: jumps on every beat, drifts slowly between. */
+  hue: number;
+  /** False when there is no microphone: the features are a slow idle pattern instead. */
+  live: boolean;
+}
+
+export interface AnalyzerSettings {
+  /** 1-10: higher reacts to quieter sound. */
+  sensitivity: number;
+  /** Keep quiet and loud rooms reacting alike by following the recent peak level. */
+  autoGain: boolean;
+}
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+/** Sensitivity 5 = x1, each step either way about x1.3 (1 = x0.33, 10 = x4). */
+export const sensitivityGain = (s: number) => 2 ** ((Math.min(10, Math.max(1, s)) - 5) / 2.5);
+
+/** Raw level below this is treated as silence, so room noise never flickers the lights. */
+export const NOISE_GATE = 0.03;
+/** Auto-gain aims the recent peak at this level... */
+const AUTO_TARGET = 0.85;
+/** ...but never amplifies more than this would allow (a quiet room stays quiet). */
+const AUTO_MIN_PEAK = 0.15;
+/** How fast the remembered peak falls when the music gets quieter. */
+const PEAK_HALF_LIFE_MS = 6000;
+/** Gain without auto-gain, at sensitivity 5 (what the earlier version used). */
+const MANUAL_GAIN = 1.6;
+const IDLE_BEAT_MS = 2000;
 
 /**
- * Turns band levels into a color, one frame at a time:
- * - each bass hit (a kick drum) jumps to a new color and flashes bright, then decays;
- * - overall loudness sets the brightness, so quiet rooms glow dimly and loud music pumps;
- * - bright treble washes the color toward white.
+ * Turns raw band levels into AudioFeatures, one frame at a time: gain (manual or automatic), a noise gate,
+ * smooth envelopes and beat detection (a bass hit well above the recent bass average, at most 4 per second).
  */
-export class SoundColorizer {
-  hue = 0;
+export class AudioAnalyzer {
+  private peak = AUTO_MIN_PEAK;
   private avgBass = 0;
-  private env = 0;
-  private flash = 0;
-  private lastBeat = -Infinity;
+  private env = { level: 0, bass: 0, mid: 0, treble: 0 };
+  private hue = 0;
+  private beatCount = 0;
+  private lastBeatMs = -Infinity;
   private lastT: number | null = null;
 
-  /** `sensitivity` 1-10: higher reacts to quieter sound. */
-  next(b: Bands, nowMs: number, sensitivity: number): LightColor {
-    const dt = this.lastT === null ? 30 : Math.min(500, Math.max(0, nowMs - this.lastT));
+  /** Current overall gain (for the meter's readout). */
+  gain = MANUAL_GAIN;
+
+  next(raw: Bands | null, nowMs: number, s: AnalyzerSettings): AudioFeatures {
+    const dt = this.lastT === null ? 25 : Math.min(500, Math.max(0, nowMs - this.lastT));
     this.lastT = nowMs;
-    const gain = 0.5 + clamp01((sensitivity - 1) / 9) * 2.5; // 0.5x to 3x
-    const bass = clamp01(b.bass * gain), level = clamp01(b.level * gain), treble = clamp01(b.treble * gain);
+    if (!raw) return this.idle(nowMs);
 
-    this.avgBass += (bass - this.avgBass) * Math.min(1, dt / 500);
-    if (bass > 0.3 && bass > this.avgBass * 1.25 && nowMs - this.lastBeat > 250) {
-      this.lastBeat = nowMs;
-      this.hue = (this.hue + 0.17) % 1;
-      this.flash = 1;
-    }
-    this.flash *= Math.exp(-dt / 250);
-    this.hue = (this.hue + (dt / 1000) * 0.02) % 1; // gentle drift between beats
-    this.env = level > this.env ? level : this.env + (level - this.env) * Math.min(1, dt / 400);
+    const gated = raw.level < NOISE_GATE;
+    if (s.autoGain && !gated) this.peak = Math.max(raw.level, this.peak * 0.5 ** (dt / PEAK_HALF_LIFE_MS), AUTO_MIN_PEAK);
+    this.gain = (s.autoGain ? AUTO_TARGET / this.peak : MANUAL_GAIN) * sensitivityGain(s.sensitivity);
+    const g = (v: number) => (gated ? 0 : clamp01(v * this.gain));
+    const now = { level: g(raw.level), bass: g(raw.bass), mid: g(raw.mid), treble: g(raw.treble) };
 
-    const brightness = clamp01(0.06 + 0.6 * this.env + 0.4 * this.flash);
-    return hsvToRgb(this.hue, 1 - 0.5 * treble, brightness);
+    // Beat: bass well above its recent average, with a quarter-second minimum between beats.
+    this.avgBass += (now.bass - this.avgBass) * Math.min(1, dt / 500);
+    const beat = now.bass > 0.3 && now.bass > this.avgBass * 1.25 + 0.03 && nowMs - this.lastBeatMs > 250;
+    if (beat) { this.lastBeatMs = nowMs; this.beatCount++; this.hue = (this.hue + 0.17) % 1; }
+    this.hue = (this.hue + (dt / 1000) * 0.02) % 1;
+
+    // Envelopes: rise at once, fall over a few hundred ms so the lights don't flicker.
+    const fall = (cur: number, v: number, ms: number) => (v > cur ? v : cur + (v - cur) * Math.min(1, dt / ms));
+    this.env = {
+      level: fall(this.env.level, now.level, 400), bass: fall(this.env.bass, now.bass, 200),
+      mid: fall(this.env.mid, now.mid, 200), treble: fall(this.env.treble, now.treble, 200),
+    };
+    return {
+      ...this.env, beat, beatCount: this.beatCount, lastBeatMs: this.lastBeatMs,
+      flash: Math.exp(-(nowMs - this.lastBeatMs) / 250), hue: this.hue, live: true,
+    };
+  }
+
+  /** No microphone: a slow, steady pattern (a "beat" every 2 s, color drifting) so sound looks never sit dark. */
+  private idle(nowMs: number): AudioFeatures {
+    const beatCount = Math.floor(nowMs / IDLE_BEAT_MS);
+    return {
+      level: 0.5, bass: 0.5, mid: 0.5, treble: 0.5, beat: false, beatCount, lastBeatMs: beatCount * IDLE_BEAT_MS,
+      flash: 0, hue: (nowMs / 20000) % 1, live: false,
+    };
   }
 }
 
@@ -72,7 +129,7 @@ export type MicStatus = 'unsupported' | 'off' | 'starting' | 'on' | 'error';
 
 const MIC_KEY = 'walkup.dmx.mic';
 
-/** Listens to a microphone through Web Audio and hands out stage-light colors. */
+/** Listens to a microphone through Web Audio and turns it into AudioFeatures for the sound effects. */
 export class SoundInput {
   status: MicStatus = typeof navigator !== 'undefined' && 'mediaDevices' in navigator ? 'off' : 'unsupported';
   message = '';
@@ -82,7 +139,7 @@ export class SoundInput {
   private analyser?: AnalyserNode;
   private stream?: MediaStream;
   private data?: Uint8Array<ArrayBuffer>;
-  private colorizer = new SoundColorizer();
+  readonly analyzer = new AudioAnalyzer();
   private listeners = new Set<() => void>();
 
   subscribe(fn: () => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
@@ -100,8 +157,8 @@ export class SoundInput {
       });
       const ctx = new AudioContext();
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.5;
+      analyser.fftSize = 2048;              // ~23 Hz per bin: enough resolution to separate kick drums from bass lines
+      analyser.smoothingTimeConstant = 0.4; // light smoothing keeps beats sharp
       ctx.createMediaStreamSource(stream).connect(analyser);
       await ctx.resume();
       this.stream = stream; this.ctx = ctx; this.analyser = analyser;
@@ -138,10 +195,8 @@ export class SoundInput {
     return bandLevels(this.data, this.ctx.sampleRate);
   }
 
-  /** The stage-light color for this frame; a slow fade when the mic is off. */
-  color(nowMs: number, sensitivity: number): LightColor {
-    const b = this.levels();
-    if (!b) return idleColor(nowMs);
-    return this.colorizer.next(b, nowMs, sensitivity);
+  /** This frame's audio features (an idle pattern when the mic is off). Call once per frame. */
+  features(nowMs: number, settings: AnalyzerSettings): AudioFeatures {
+    return this.analyzer.next(this.levels(), nowMs, settings);
   }
 }

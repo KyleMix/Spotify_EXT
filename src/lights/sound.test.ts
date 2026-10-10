@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { bandLevels, hsvToRgb, idleColor, SoundColorizer, type Bands } from './sound';
+import { AudioAnalyzer, bandLevels, hsvToRgb, NOISE_GATE, sensitivityGain, type Bands } from './sound';
 
 const quiet: Bands = { bass: 0, mid: 0, treble: 0, level: 0 };
-const kick: Bands = { bass: 0.9, mid: 0.3, treble: 0.05, level: 0.9 };
-const brightness = (c: { r: number; g: number; b: number }) => Math.max(c.r, c.g, c.b);
 
 describe('bandLevels', () => {
   it('splits the spectrum into bass, mid and treble', () => {
@@ -31,45 +29,70 @@ describe('hsvToRgb', () => {
   });
 });
 
-describe('SoundColorizer', () => {
-  it('glows dimly in a quiet room', () => {
-    const c = new SoundColorizer();
-    let out = c.next(quiet, 0, 5);
-    for (let t = 30; t < 2000; t += 30) out = c.next(quiet, t, 5);
-    expect(brightness(out)).toBeGreaterThan(0);
-    expect(brightness(out)).toBeLessThan(40);
-  });
-  it('jumps to a new, bright color on a bass hit', () => {
-    const c = new SoundColorizer();
-    for (let t = 0; t < 1000; t += 30) c.next(quiet, t, 5);
-    const before = c.hue;
-    const out = c.next(kick, 1000, 5);
-    expect(c.hue).not.toBeCloseTo(before, 2);
-    expect(brightness(out)).toBeGreaterThan(200);
-  });
-  it('does not count a held bass note as many beats', () => {
-    const c = new SoundColorizer();
-    for (let t = 0; t < 1000; t += 30) c.next(quiet, t, 5);
-    c.next(kick, 1000, 5);
-    const afterFirst = c.hue;
-    for (let t = 1030; t < 1200; t += 30) c.next(kick, t, 5); // within 250 ms: no new beat
-    expect(c.hue - afterFirst).toBeLessThan(0.05);
-  });
-  it('higher sensitivity reacts to quieter sound', () => {
-    const soft: Bands = { bass: 0.1, mid: 0.2, treble: 0.05, level: 0.2 };
-    const run = (sens: number) => {
-      const c = new SoundColorizer();
-      let out = c.next(soft, 0, sens);
-      for (let t = 30; t < 1500; t += 30) out = c.next(soft, t, sens);
-      return brightness(out);
-    };
-    expect(run(10)).toBeGreaterThan(run(1));
-  });
-});
+const loud = (v: number): Bands => ({ bass: v, mid: v * 0.5, treble: v * 0.2, level: v });
+const S = { sensitivity: 5, autoGain: true };
 
-describe('idleColor', () => {
-  it('fades slowly through colors at half brightness', () => {
-    expect(brightness(idleColor(0))).toBe(128);
-    expect(idleColor(0)).not.toEqual(idleColor(5000));
+/** Feed a kick-drum pattern: `bpm` hits (bass spikes) with quiet bass between, sampled every 25 ms. */
+function run(an: AudioAnalyzer, opts: { bpm: number; peak: number; ms: number; start?: number; settings?: typeof S }) {
+  const beatMs = 60000 / opts.bpm;
+  let last = an.next(null, 0, S);
+  const start = opts.start ?? 0;
+  for (let t = start; t < start + opts.ms; t += 25) {
+    const inHit = (t - start) % beatMs < 50;
+    last = an.next(inHit ? loud(opts.peak) : loud(opts.peak * 0.25), t, opts.settings ?? S);
+  }
+  return last;
+}
+
+describe('AudioAnalyzer', () => {
+  it('finds one beat per kick drum at 120 BPM', () => {
+    const an = new AudioAnalyzer();
+    const f = run(an, { bpm: 120, peak: 0.6, ms: 10_000 });
+    expect(f.beatCount).toBeGreaterThanOrEqual(18);
+    expect(f.beatCount).toBeLessThanOrEqual(20);
+    expect(f.live).toBe(true);
+  });
+  it('never counts more than 4 beats a second', () => {
+    const an = new AudioAnalyzer();
+    const f = run(an, { bpm: 600, peak: 0.8, ms: 5000 });
+    expect(f.beatCount).toBeLessThanOrEqual(20);
+  });
+  it('auto-gain makes a quiet room and a loud room react alike', () => {
+    const quiet = run(new AudioAnalyzer(), { bpm: 120, peak: 0.2, ms: 10_000 });
+    const loudRoom = run(new AudioAnalyzer(), { bpm: 120, peak: 0.8, ms: 10_000 });
+    expect(Math.abs(quiet.beatCount - loudRoom.beatCount)).toBeLessThanOrEqual(1);
+  });
+  it('without auto-gain a quiet room barely registers at low sensitivity', () => {
+    const f = run(new AudioAnalyzer(), { bpm: 120, peak: 0.12, ms: 5000, settings: { sensitivity: 1, autoGain: false } });
+    expect(f.beatCount).toBe(0);
+  });
+  it('ignores room noise below the gate', () => {
+    const an = new AudioAnalyzer();
+    let f = an.next(null, 0, S);
+    for (let t = 0; t < 5000; t += 25) f = an.next(loud(NOISE_GATE * 0.8), t, S);
+    expect(f.level).toBe(0);
+    expect(f.beatCount).toBe(0);
+  });
+  it('flash is 1 on a beat and fades out; the beat color moves on', () => {
+    const an = new AudioAnalyzer();
+    for (let t = 0; t < 1000; t += 25) an.next(loud(0.1), t, S);
+    const hit = an.next(loud(0.8), 1000, S);
+    expect(hit.beat).toBe(true);
+    expect(hit.flash).toBeCloseTo(1);
+    const later = an.next(loud(0.1), 1500, S);
+    expect(later.flash).toBeLessThan(0.2);
+    expect(later.hue).not.toBeCloseTo(0, 2);
+  });
+  it('with no microphone it runs a slow idle pattern', () => {
+    const an = new AudioAnalyzer();
+    const a = an.next(null, 0, S), b = an.next(null, 4100, S);
+    expect(a.live).toBe(false);
+    expect(b.beatCount - a.beatCount).toBe(2);
+    expect(a.level).toBe(0.5);
+  });
+  it('sensitivity scales around x1 at 5', () => {
+    expect(sensitivityGain(5)).toBe(1);
+    expect(sensitivityGain(10)).toBeCloseTo(4);
+    expect(sensitivityGain(1)).toBeCloseTo(0.33, 1);
   });
 });

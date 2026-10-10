@@ -34,12 +34,28 @@ export interface LooksState {
   cues: Record<ShowMoment, string>;
   /** Key that hands the lights back to the show (releases a look fired by hand). */
   releaseKey?: string;
+  /** Which set of starting looks this state has seen, so new ones are offered once after an update. */
+  version?: number;
 }
 
+/** Bump when adding starting looks; saved states below it get the new ones appended once. */
+export const LOOKS_VERSION = 2;
+
 const RED: LightColor = { r: 255, g: 0, b: 0 };
+const GREEN: LightColor = { r: 0, g: 255, b: 0 };
+const BLUE_FULL: LightColor = { r: 0, g: 0, b: 255 };
+const CYAN: LightColor = { r: 0, g: 220, b: 255 };
 const BLUE: LightColor = { r: 0, g: 60, b: 255 };
 const AMBER: LightColor = { r: 255, g: 120, b: 20 };
 const layer = (effect: EffectId, colors: LightColor[] = [], speed = 1, intensity = 1): Layer => ({ effect, colors, speed, intensity });
+
+/** Music looks added in version 2 (Phase 3). */
+const MUSIC_LOOKS: Look[] = [
+  { id: 'beat-chase', name: 'Beat chase', fadeMs: 300, all: layer('beat-chase', [CYAN, { r: 0, g: 0, b: 30 }]), perFixture: {} },
+  { id: 'ripple', name: 'Ripple', fadeMs: 300, all: layer('ripple', [], 1), perFixture: {} },
+  { id: 'meter', name: 'Music meter', fadeMs: 300, all: layer('meter'), perFixture: {} },
+  { id: 'bands', name: 'Bass / mid / treble', fadeMs: 300, all: layer('bands', [RED, GREEN, BLUE_FULL]), perFixture: {} },
+];
 
 /** Starting looks. `stageWhite` carries over the white level set in the previous version. */
 export function defaultLooks(stageWhite = 100): LooksState {
@@ -51,14 +67,16 @@ export function defaultLooks(stageWhite = 100): LooksState {
     { id: 'warm', name: 'Warm wash', fadeMs: 1500, all: layer('solid', [AMBER], 1, 0.8), perFixture: {} },
     { id: 'rainbow', name: 'Rainbow', fadeMs: 1000, all: layer('rainbow', [], 1), perFixture: {} },
     { id: 'chase', name: 'Blue chase', fadeMs: 300, all: layer('chase', [BLUE, { r: 0, g: 0, b: 40 }], 2), perFixture: {} },
+    ...MUSIC_LOOKS,
   ];
   return {
     looks,
     cues: { walkup: 'sound', onstage: 'stage-white', warning: 'warning-red', timeup: 'time-up', between: 'sound', closing: 'rainbow' },
+    version: LOOKS_VERSION,
   };
 }
 
-const EFFECT_IDS: EffectId[] = ['off', 'solid', 'pulse', 'chase', 'rainbow', 'strobe', 'sound'];
+const EFFECT_IDS: EffectId[] = ['off', 'solid', 'pulse', 'chase', 'rainbow', 'strobe', 'sound', 'beat-chase', 'ripple', 'meter', 'bands', 'level'];
 const byte = (v: unknown) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(255, Math.max(0, n)) : 0; };
 const num = (v: unknown, lo: number, hi: number, fallback: number) => {
   const n = Number(v);
@@ -89,7 +107,11 @@ export function clampLook(l: Partial<Look>): Look {
 
 export function clampLooksState(s: Partial<LooksState>, fallbackWhite = 100): LooksState {
   const base = defaultLooks(fallbackWhite);
-  const looks = Array.isArray(s.looks) ? s.looks.slice(0, 64).map(clampLook) : base.looks;
+  let looks = Array.isArray(s.looks) ? s.looks.slice(0, 64).map(clampLook) : base.looks;
+  // Saved before the music looks existed: add them once (never again, so deleting one sticks).
+  if (Array.isArray(s.looks) && (s.version ?? 1) < 2) {
+    looks = [...looks, ...MUSIC_LOOKS.filter((m) => !looks.some((l) => l.id === m.id)).map((m) => clampLook(m))].slice(0, 64);
+  }
   const ids = new Set(looks.map((l) => l.id));
   const cues = { ...base.cues };
   for (const m of Object.keys(cues) as ShowMoment[]) {
@@ -97,7 +119,7 @@ export function clampLooksState(s: Partial<LooksState>, fallbackWhite = 100): Lo
     if (typeof v === 'string') cues[m] = v === '' || ids.has(v) ? v : '';
     else if (!ids.has(cues[m])) cues[m] = '';
   }
-  return { looks, cues, releaseKey: typeof s.releaseKey === 'string' && s.releaseKey ? s.releaseKey : undefined };
+  return { looks, cues, releaseKey: typeof s.releaseKey === 'string' && s.releaseKey ? s.releaseKey : undefined, version: LOOKS_VERSION };
 }
 
 /** Which look a key fires, if any. */
