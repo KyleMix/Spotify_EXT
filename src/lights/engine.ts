@@ -26,6 +26,7 @@ export type EngineStatus = 'unsupported' | OutputStatus;
 
 const PORT_KEY = 'walkup.dmx.port';
 const DRIVER_KEY = 'walkup.lights.driver';
+const WORKER_KEY = 'walkup.lights.useWorker';
 const TICK_MS = 25;
 const CHECK_STEP_MS = 900;
 /** Fade to dark when nothing is active. */
@@ -41,6 +42,8 @@ export class LightEngine {
   readonly sound = new SoundInput();
   driver: DriverId = (() => { try { return localStorage.getItem(DRIVER_KEY) === 'enttec' ? 'enttec' : 'opendmx'; } catch { return 'opendmx'; } })();
 
+  /** Send frames from a background worker instead of the page (opt-in; the page is the proven default). */
+  useWorker: boolean = (() => { try { return localStorage.getItem(WORKER_KEY) === '1'; } catch { return false; } })();
   status: EngineStatus = serialApi() ? 'disconnected' : 'unsupported';
   message = serialApi() ? '' : 'Lighting needs Chrome or Edge on a computer (Web Serial).';
   /** Frames per second actually sent to the cable, measured where they are sent. */
@@ -68,6 +71,8 @@ export class LightEngine {
   private fade: FadeState = { targetId: null, from: {}, startedAt: 0, ms: 0 };
   private timer?: ReturnType<typeof setInterval>;
   private link?: DmxLink;
+  /** The connect in progress, so a second request (e.g. auto-connect running twice) waits instead of racing it. */
+  private connecting?: Promise<void>;
   private listeners = new Set<() => void>();
 
   subscribe(fn: () => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
@@ -367,6 +372,12 @@ export class LightEngine {
     return this.link;
   }
 
+  setUseWorker(on: boolean) {
+    this.useWorker = on;
+    try { localStorage.setItem(WORKER_KEY, on ? '1' : '0'); } catch { /* storage unavailable */ }
+    this.emit();
+  }
+
   setDriver(d: DriverId) {
     this.driver = d;
     try { localStorage.setItem(DRIVER_KEY, d); } catch { /* storage unavailable */ }
@@ -380,7 +391,7 @@ export class LightEngine {
     try {
       const port = await s.requestPort();
       try { localStorage.setItem(PORT_KEY, JSON.stringify(port.getInfo())); } catch { /* storage unavailable */ }
-      await this.ensureLink().open(port, this.driver);
+      await this.ensureLink().open(port, this.driver, this.useWorker);
     } catch (e) {
       const err = e as Error;
       if (err.name === 'NotFoundError') return; // the user closed the port picker
@@ -389,18 +400,27 @@ export class LightEngine {
   }
 
   /** Reconnect silently to a cable the browser already has permission for. */
-  async autoConnect() {
+  autoConnect(): Promise<void> {
+    this.connecting ??= this.tryAutoConnect().finally(() => { this.connecting = undefined; });
+    return this.connecting;
+  }
+
+  private listening = false;
+  private async tryAutoConnect() {
     const s = serialApi();
     if (!s || this.status === 'connected' || this.status === 'connecting') return;
-    s.addEventListener('disconnect', () => {
-      if (this.status === 'connected') void this.link?.close('Cable unplugged');
-    });
+    if (!this.listening) {
+      this.listening = true;
+      s.addEventListener('disconnect', () => {
+        if (this.status === 'connected') void this.link?.close('Cable unplugged');
+      });
+    }
     try {
       const ports = await s.getPorts();
       let saved: PortInfo | null = null;
       try { saved = JSON.parse(localStorage.getItem(PORT_KEY) ?? 'null'); } catch { /* ignore */ }
       const match = ports.find((p) => samePort(p.getInfo(), saved)) ?? (ports.length === 1 ? ports[0] : undefined);
-      if (match) await this.ensureLink().open(match, this.driver);
+      if (match) await this.ensureLink().open(match, this.driver, this.useWorker);
     } catch { /* stay disconnected; the user can click Connect */ }
   }
 
