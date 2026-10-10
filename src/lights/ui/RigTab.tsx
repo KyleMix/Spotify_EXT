@@ -112,14 +112,6 @@ export function RigTab({ engine, onTest }: { engine: LightEngine; onTest: (fixtu
                 <input type="number" min={1} max={512} value={f.address} aria-label={`${nameOf(f, i)} start address`}
                   onChange={(e) => engine.updateFixture(f.id, { address: e.target.value === '' ? 1 : Number(e.target.value) })} />
               </div>
-              <div>
-                <label>Role in the show</label>
-                <select value={f.role} aria-label={`${nameOf(f, i)} role`}
-                  onChange={(e) => engine.updateFixture(f.id, { role: e.target.value as PatchedFixture['role'] })}>
-                  <option value="stage">Stage light (white during sets, sound between)</option>
-                  <option value="warning">Warning light (red time cue)</option>
-                </select>
-              </div>
             </div>
             <div className="mt-2">
               <AddressOnLight profile={profile} address={f.address} />

@@ -10,7 +10,7 @@ import { TestRun } from './TestRun';
 import { RemotePanel } from './RemotePanel';
 import type { LightEngine } from '../lights/engine';
 import { ConnectionBar } from '../lights/ui/LightsScreen';
-import { lightIsOn } from '../lights/show';
+import { showMoment } from '../lights/looks';
 import { OFF, RED } from '../lights/color';
 import { TIMER_CHANNEL, TIMER_WINDOW_NAME, parseMessage, type TimerSnapshot } from './timerSync';
 import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
@@ -90,17 +90,15 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
 
   const elapsed = phase === 'timing' ? now - startedAt : 0;
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
-  // Stage light: a short red flash at the light-warning time, then solid red once time is up until the next act.
-  const lightRed = slot ? lightIsOn(phase, elapsed, slot.setLengthMin, slot.warnAtMin, dmx.show.warnPulseSec) : false;
-  // In pop-out display mode the DMX light stays off; the comedian watches the second-screen timer instead.
+  // In pop-out display mode the lights never go red; the comedian watches the second-screen timer instead.
   const lightMode = settings.warningMode === 'light';
-  useEffect(() => { dmx.setShowColor(lightRed && lightMode ? RED : OFF); }, [dmx, lightRed, lightMode]);
-  useEffect(() => () => dmx.setShowColor(OFF), [dmx]);
-  // Stage lights: white while an act is on the clock; the rest of the show (walk-ups, walk-offs, between acts,
-  // closing song) they follow the microphone.
-  const stageMode = !done && phase === 'timing' ? 'white' : 'sound';
-  useEffect(() => { dmx.setStageMode(stageMode); }, [dmx, stageMode]);
-  useEffect(() => () => dmx.setStageMode('off'), [dmx]);
+  // Tell the lights where the show is; each moment fires the look chosen for it on the Lights screen.
+  const moment = showMoment({
+    done, phase, elapsedMs: elapsed, setLengthMin: slot?.setLengthMin ?? 0, warnAtMin: slot?.warnAtMin ?? 0,
+    pulseSec: dmx.show.warnPulseSec, redCues: lightMode,
+  });
+  useEffect(() => { dmx.setShowMoment(moment); }, [dmx, moment]);
+  useEffect(() => () => dmx.setShowMoment(null), [dmx]);
 
   // Mirror the current act to the pop-out timer window (same browser, any number of copies).
   const snap: TimerSnapshot = {
@@ -420,9 +418,9 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
           <button className="mini" onClick={onOpenLights}>Open Lights screen</button>
         </div>
         <p className="muted mt-2">
-          Stage lights go white while a comedian is on the clock and follow the microphone between acts.
-          {lightMode ? ' Warning lights do the red time cue.' : ' Warning lights stay off: the pop-out timer is the time warning.'}
-          {' '}Set up the rig, test channels and start the microphone on the Lights screen.
+          Each moment of the show fires a look: walk-up, on stage, light warning, time's up, between acts and end of show.
+          {lightMode ? '' : ' In pop-out timer mode the lights never go red; the timer window is the time warning.'}
+          {' '}Choose the looks, build new ones and start the microphone on the Lights screen.
         </p>
         <ConnectionBar engine={dmx} />
       </div>

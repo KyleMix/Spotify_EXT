@@ -67,6 +67,8 @@ with a performance timer.
 The **Lights** tab (the first tab) sets up, tests and controls DMX lights. It needs **Chrome or Edge** on a computer
 (Web Serial), on `http://127.0.0.1:5173` or an HTTPS site. See `docs/LIGHTING_PLAN.md` for the design and roadmap.
 
+The screen has five tabs: **Console**, **Looks**, **Show**, **Rig** and **Tools**.
+
 **Connecting:** pick the cable type (*Open DMX (FTDI) cable*, e.g. DSD TECH SH-RS09B, or a *DMX USB Pro-style
 interface*), click **Connect lights** and choose the cable's serial port. Later visits reconnect automatically. The bar
 shows frames per second (below 20 can flicker) and whether frames are sent from a background worker or the page.
@@ -83,7 +85,6 @@ shows frames per second (below 20 can flicker) and whether frames are sent from 
 4. **Custom light types:** for lights not in the list or whose channels differ from the manual. Describe each channel
    (red/green/blue/white/amber with its pixel, dimmer, strobe, mode/control with the value to hold). *Copy and edit this type*
    starts from a built-in one. Lights saved by older versions of the app are moved over automatically.
-5. **Role:** *Stage light* (white during sets, sound-reactive between acts) or *Warning light* (the red time cue).
 
 **Tools tab:**
 - **Rig check:** steps every pod/par of every light through red, green, blue and white with everything else dark, naming each
@@ -92,11 +93,22 @@ shows frames per second (below 20 can flicker) and whether frames are sent from 
   their home values, the quickest way to learn an unknown light. *Other lights dark while testing* is on by default.
 - **Universe monitor:** the live value of every DMX channel, colored by which light owns it.
 
-**Show tab:** stage lights are white while a comedian is on the clock (*White level during a set*) and follow the microphone
-the rest of the show: press **🎤 Start microphone** (pick the mic if there are several; it must be restarted after a reload),
-adjust *Sound sensitivity*. With the mic off they fade slowly through colors. Warning lights flash red for *Warning flash*
-seconds at each act's light-warning time, then turn red when time is up until the next act (off in pop-out timer mode).
-Lights only follow the show while Live mode is open.
+**Looks tab:** a look is a saved lighting state: an effect for all lights (*Solid*, *Pulse*, *Chase* across every pod and
+par of the rig, *Rainbow*, *Strobe* capped at 10 flashes a second with a photosensitivity warning, *Sound reactive*, *Off*),
+colors, speed, level and a **fade-in time**, plus optional per-light settings (e.g. one bar red, the other white). Edits save
+as you go; *Preview on the rig* shows it live. Give a look a **key** to fire it from any screen (Stream Deck *Hotkey* on
+F13–F24 works well); keys Live mode already uses are refused. Starting looks: Stage white, Sound reactive, Warning flash,
+Time's up, Warm wash, Rainbow, Blue chase.
+
+**Console tab:** big buttons fire looks by hand. A fired look holds over the show until you click it again, fire another or
+press **Back to show** (which can have a key too). **Master dimmer** scales every look. A live preview shows each pod/par.
+
+**Show tab:** which look each moment fires while Live mode is open: *Walk-up*, *On stage*, *Light warning* (lasts
+*Light warning lasts* seconds, then back to On stage), *Time's up* (until the act ends), *Between acts* and *End of show*.
+Defaults: sound reactive for walk-ups and between acts, Stage white on stage, red flash at the warning, red pulse when time's
+up, rainbow at the end. In pop-out timer mode the lights never go red. The **microphone** for sound-reactive looks is here too
+(start it after each reload; with it off, sound looks fade slowly through colors). With Live mode closed, the lights are
+dark unless you fire a look.
 
 If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
 If the cable is unplugged mid-show, the timer keeps working and the bar shows "Lights offline".
