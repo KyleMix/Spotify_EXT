@@ -67,6 +67,9 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
   const [answers, setAnswers] = useState<Record<number, LearnAnswer>>({});
   const [where, setWhere] = useState(1);
   const [saved, setSaved] = useState('');
+  // Stepping is a true solo by default: every other channel at 0, so a channel the profile calls a dimmer (held at
+  // full) can't hide that it's really a color. Optionally keep dimmer/mode channels at their home values instead.
+  const [holdHome, setHoldHome] = useState(false);
 
   useEffect(() => { if (initialFixture) setFid(initialFixture); }, [initialFixture]);
   useEffect(() => { setAnswers({}); setCount(0); setWhere(1); setSaved(''); }, [fid]);
@@ -79,7 +82,8 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
   const solo = (ch: number) => {
     const c = Math.min(total, Math.max(1, ch));
     setStepCh(c);
-    send({ ...home, [c]: 255 });
+    const base = holdHome ? home : Object.fromEntries(Object.keys(home).map((k) => [k, 0]));
+    send({ ...base, [c]: 255 });
   };
   const profile = profileOf(rig, fixture);
   const pxName = profile?.pixelName ?? 'Pixel';
@@ -109,8 +113,9 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
       </div>
       <p className="muted mt-2">
         Every slider is one DMX channel of this light, starting at its address. Channels marked as mode/control start at the value
-        that keeps the light in DMX mode. <strong>Step through</strong> lights one channel at a time (the others stay at home),
-        which is the quickest way to learn what an unknown light's channels do.
+        that keeps the light in DMX mode. <strong>Step through</strong> lights one channel at a time,
+        which is the quickest way to learn what an unknown light's channels do. While stepping, every other channel of the
+        light is at 0 unless you tick <em>Keep dimmer/mode channels up</em>.
       </p>
       <div className="row wrap gap-2 mb-3">
         <button className="mini" onClick={() => solo(stepCh - 1)} disabled={stepCh <= 1} aria-label="Previous channel">◀</button>
@@ -121,6 +126,10 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
         <label className="check ml-2">
           <input type="checkbox" checked={engine.soloTester} onChange={(e) => engine.setSoloTester(e.target.checked)} />
           Other lights dark while testing
+        </label>
+        <label className="check ml-2" title="Off: stepping lights only one channel, everything else at 0 (best for learning a light). On: dimmer and mode channels stay at their home values while stepping.">
+          <input type="checkbox" checked={holdHome} onChange={(e) => setHoldHome(e.target.checked)} />
+          Keep dimmer/mode channels up while stepping
         </label>
       </div>
       {!active && <p className="muted mt-0">Not testing: the light is following the show. Move a slider or step through to take over.</p>}
