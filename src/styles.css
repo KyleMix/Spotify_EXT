@@ -362,3 +362,9 @@ body:has(.tw){margin:0;background:#000}
 .dock-master{min-width:180px;flex:0 1 240px}
 .dock-looks{display:flex;flex-wrap:wrap;gap:var(--s1)}
 .dock-looks button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
+.learn{background:var(--panel2)}
+.learn-list{display:flex;flex-wrap:wrap;gap:var(--s1)}
+.learn-list .chip{cursor:pointer;padding:2px var(--s2)}
+.learn-list .chip.on{border-color:var(--accent)}
+.swatch-btn{border-left-width:6px}
+.sw-red{border-left-color:#ff3b30}.sw-green{border-left-color:#30d158}.sw-blue{border-left-color:#0a84ff}.sw-white{border-left-color:#fff}.sw-amber{border-left-color:#ff9f0a}

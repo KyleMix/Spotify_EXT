@@ -24,6 +24,9 @@ export interface RenderOptions {
   soloFixtureId?: string | null;
 }
 
+/** How far past its address the tester may drive a light. */
+export const MAX_RAW_CHANNELS = 64;
+
 const byte = (n: number) => Math.min(255, Math.max(0, Math.round(n)));
 
 /** Channel values for one light in its mode, starting from each channel's home value. */
@@ -51,20 +54,26 @@ export function renderUniverse(rig: Rig, looks: Record<string, FixtureLook | und
     if (!mode) continue;
     const dark = opts.blackout || (opts.soloFixtureId != null && opts.soloFixtureId !== f.id);
     const values = renderFixture(mode, dark ? { colors: [OFF], intensity: 0 } : looks[f.id]);
+    values.forEach((v, i) => { if (f.address + i <= 512) universe[f.address + i] = v; });
+    // The tester can also drive channels past the end of the light's current mode (up to 64), to learn a light
+    // whose real mode is bigger than the one it's patched as.
     if (!opts.blackout && opts.raw?.fixtureId === f.id) {
       for (const [k, v] of Object.entries(opts.raw.values)) {
-        const i = Number(k) - 1;
-        if (i >= 0 && i < values.length) values[i] = byte(v);
+        const ch = Number(k);
+        if (ch >= 1 && ch <= MAX_RAW_CHANNELS && f.address + ch - 1 <= 512) universe[f.address + ch - 1] = byte(v);
       }
     }
-    values.forEach((v, i) => { if (f.address + i <= 512) universe[f.address + i] = v; });
   }
   return universe;
 }
 
 /** Highest channel any light uses (at least 24: shorter DMX frames are not standard). */
-export function usedSlots(rig: Rig): number {
-  return Math.min(512, Math.max(24, ...rig.fixtures.map((f) => f.address + (modeOf(rig, f)?.channels.length ?? 1) - 1)));
+export function usedSlots(rig: Rig, raw?: RawOverride | null): number {
+  const rawTop = raw ? Math.max(0, ...Object.keys(raw.values).map(Number)) : 0;
+  const rawFixture = raw ? rig.fixtures.find((f) => f.id === raw.fixtureId) : undefined;
+  return Math.min(512, Math.max(24,
+    ...rig.fixtures.map((f) => f.address + (modeOf(rig, f)?.channels.length ?? 1) - 1),
+    rawFixture ? rawFixture.address + rawTop - 1 : 0));
 }
 
 /* ---------- Rig check: steps every pixel of every light through red, green, blue and white ---------- */

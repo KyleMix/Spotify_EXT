@@ -92,6 +92,11 @@ shows frames per second (below 20 can flicker) and whether frames are sent from 
 **Tools tab:**
 - **Rig check:** steps every pod/par of every light through red, green, blue and white with everything else dark, naming each
   step (e.g. *Neo-Slim · Par 3 of 4 · blue*). Run it before every show.
+- **Learn this light:** in the channel tester, press **Step through channels**. For each channel, pick where the light lit
+  (*Whole light* or *Par/Pod 1, 2, …*) and its color (or *Nothing happened*, *It flashed / strobed*, *It ran a program*);
+  the next channel comes up by itself. Raise *Channels in the light's mode* to test past the current layout (up to 64).
+  **Save as this light's type** creates a custom light type from the answers and switches the light to it. Use this for
+  lights whose manual is missing or wrong, like the Neo-Slim.
 - **Channel tester:** a slider per channel of one light. **Step through channels** puts one channel at full with the rest at
   their home values, the quickest way to learn an unknown light. *Other lights dark while testing* is on by default.
 - **Universe monitor:** the live value of every DMX channel, colored by which light owns it.

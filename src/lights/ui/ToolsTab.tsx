@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LightEngine } from '../engine';
 import { channelOwners, modeOf, profileOf, type Rig } from '../patch';
 import { channelLabel } from '../profiles';
-import { checkSteps, describeStep, usedSlots } from '../render';
+import { checkSteps, describeStep, MAX_RAW_CHANNELS, usedSlots } from '../render';
+import { describeAnswer, learnedProfile, type LearnAnswer } from '../learn';
 import { useEngine, useTicker } from './useEngine';
 
 /* Owner colors for the monitor: one hue per light, spread around the wheel. */
@@ -61,17 +62,40 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
   const active = engine.raw && engine.raw.fixtureId === fixture?.id ? engine.raw.values : null;
   const values = active ?? home;
   const [stepCh, setStepCh] = useState(0);
+  // Learning: how many channels the light's real mode has, what each channel did, and where the last one lit.
+  const [count, setCount] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, LearnAnswer>>({});
+  const [where, setWhere] = useState(1);
+  const [saved, setSaved] = useState('');
 
   useEffect(() => { if (initialFixture) setFid(initialFixture); }, [initialFixture]);
+  useEffect(() => { setAnswers({}); setCount(0); setWhere(1); setSaved(''); }, [fid]);
 
   if (!fixture || !mode) return <div className="card mb-3 muted">Add a light in the Rig tab to test its channels.</div>;
 
   const send = (v: Record<number, number>) => engine.setRaw(fixture.id, v);
   const set = (ch: number, v: number) => send({ ...values, [ch]: Math.min(255, Math.max(0, v)) });
+  const total = count || mode.channels.length;
   const solo = (ch: number) => {
-    const c = Math.min(mode.channels.length, Math.max(1, ch));
+    const c = Math.min(total, Math.max(1, ch));
     setStepCh(c);
     send({ ...home, [c]: 255 });
+  };
+  const profile = profileOf(rig, fixture);
+  const pxName = profile?.pixelName ?? 'Pixel';
+  const pixels = Math.max(4, ...Object.values(answers).map((a) => (a.kind === 'color' ? a.pixel : 0)));
+  const answer = (a: LearnAnswer) => {
+    setAnswers((prev) => ({ ...prev, [stepCh]: a }));
+    setSaved('');
+    if (stepCh < total) solo(stepCh + 1);
+  };
+  const learnedCount = Object.keys(answers).filter((k) => Number(k) <= total).length;
+  const saveLearned = () => {
+    const id = engine.saveProfile(learnedProfile({ name: fixture.name || profile?.name || 'Light', count: total, answers, base: profile }));
+    engine.clearRaw();
+    setStepCh(0);
+    engine.updateFixture(fixture.id, { profileId: id, modeId: 'learned' });
+    setSaved(`Saved. ${fixture.name || 'This light'} now uses the learned layout (${total} channels). Run the rig check to confirm it.`);
   };
 
   return (
@@ -91,7 +115,7 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
       <div className="row wrap gap-2 mb-3">
         <button className="mini" onClick={() => solo(stepCh - 1)} disabled={stepCh <= 1} aria-label="Previous channel">◀</button>
         <button className="mini primary" onClick={() => solo(stepCh || 1)}>{stepCh ? `Channel ${stepCh} at full` : 'Step through channels'}</button>
-        <button className="mini" onClick={() => solo(stepCh + 1)} disabled={stepCh >= mode.channels.length} aria-label="Next channel">▶</button>
+        <button className="mini" onClick={() => solo(stepCh + 1)} disabled={stepCh >= total} aria-label="Next channel">▶</button>
         <button className="mini" onClick={() => { setStepCh(0); send(home); }}>Reset to home</button>
         <button className="mini" disabled={!active} onClick={() => { setStepCh(0); engine.clearRaw(); }}>Stop testing</button>
         <label className="check ml-2">
@@ -100,6 +124,57 @@ function Tester({ engine, initialFixture }: { engine: LightEngine; initialFixtur
         </label>
       </div>
       {!active && <p className="muted mt-0">Not testing: the light is following the show. Move a slider or step through to take over.</p>}
+      {saved && <p className="text-ok mt-0" role="status">{saved}</p>}
+      {stepCh > 0 && (
+        <div className="learn card mb-3">
+          <div className="row wrap">
+            <strong>Learn this light: what did channel {stepCh} do?{answers[stepCh] ? ` (answered: ${describeAnswer(answers[stepCh], pxName)})` : ''}</strong>
+            <span className="muted">{learnedCount} of {total} answered</span>
+            <div className="spacer" />
+            <label className="check">
+              Channels in the light's mode
+              <input type="number" className="w-auto chan-val" min={1} max={MAX_RAW_CHANNELS} value={total} aria-label="Channels in the light's mode"
+                onChange={(e) => setCount(Math.min(MAX_RAW_CHANNELS, Math.max(1, Number(e.target.value) || 1)))} />
+            </label>
+          </div>
+          <div className="row wrap gap-2 mt-2">
+            <span className="muted minw-90">Where it lit:</span>
+            <button className={`mini${where === 0 ? ' primary' : ''}`} aria-pressed={where === 0} onClick={() => setWhere(0)}>Whole light</button>
+            {Array.from({ length: pixels }, (_, i) => (
+              <button key={i} className={`mini${where === i + 1 ? ' primary' : ''}`} aria-pressed={where === i + 1} onClick={() => setWhere(i + 1)}>{pxName} {i + 1}</button>
+            ))}
+            <button className="mini" title="Add another pod/par" onClick={() => setWhere(pixels + 1)}>+</button>
+          </div>
+          <div className="row wrap gap-2 mt-2">
+            <span className="muted minw-90">Color:</span>
+            {(['red', 'green', 'blue', 'white', 'amber'] as const).map((c) => (
+              <button key={c} className={`mini swatch-btn sw-${c}`} onClick={() => answer({ kind: 'color', color: c, pixel: where })}>{c[0].toUpperCase() + c.slice(1)}</button>
+            ))}
+            <span className="muted">or</span>
+            <button className="mini" onClick={() => answer({ kind: 'nothing' })}>Nothing happened</button>
+            <button className="mini" onClick={() => answer({ kind: 'strobe' })}>It flashed / strobed</button>
+            <button className="mini" onClick={() => answer({ kind: 'mode' })}>It ran a program / changed mode</button>
+          </div>
+          {stepCh === total && answers[stepCh] && (
+            <p className="text-ok mt-2 mb-0" role="status">
+              That was the last channel. Save below, or raise <em>Channels in the light's mode</em> and press ▶ to keep going.
+            </p>
+          )}
+          {learnedCount > 0 && (
+            <div className="learn-list mt-2">
+              {Object.entries(answers).filter(([k]) => Number(k) <= total).sort(([a], [b]) => Number(a) - Number(b)).map(([k, a]) => (
+                <button key={k} className={`chip${Number(k) === stepCh ? ' on' : ''}`} title="Go back to this channel" onClick={() => solo(Number(k))}>
+                  {k}: {describeAnswer(a, pxName)}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="row wrap gap-2 mt-2">
+            <button className="mini primary" disabled={!learnedCount} onClick={saveLearned}>Save as this light's type</button>
+            <span className="muted">Pick where it lit first, then the color: the next channel comes up automatically. Unanswered channels are left unused.</span>
+          </div>
+        </div>
+      )}
       <div className="chan-sliders">
         {mode.channels.map((c, i) => {
           const ch = i + 1;

@@ -150,7 +150,7 @@ export class LightEngine {
       raw: this.check ? null : this.raw,
       soloFixtureId: solo,
     });
-    this.link?.send(this.universe, usedSlots(this.rig));
+    this.link?.send(this.universe, usedSlots(this.rig, this.check ? null : this.raw));
   }
 
   /* ---------- show and console ---------- */
