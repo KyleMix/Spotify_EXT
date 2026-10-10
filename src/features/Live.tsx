@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Show } from '../types';
-import { actCount, showTrackUris, DEFAULTS, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
+import { actCount, showTrackUris, DEFAULTS, clockText, idleClockText, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
 import type { WalkUpPlayer } from '../spotify/player';
 import {
   bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
@@ -92,6 +92,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
   // In pop-out display mode the lights never go red; the comedian watches the second-screen timer instead.
   const lightMode = settings.warningMode === 'light';
+  const countDown = settings.timerCounts === 'down';
   // Tell the lights where the show is; each moment fires the look chosen for it on the Lights screen.
   const moment = showMoment({
     done, phase, elapsedMs: elapsed, setLengthMin: slot?.setLengthMin ?? 0, warnAtMin: slot?.warnAtMin ?? 0,
@@ -105,6 +106,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
     phase: done ? 'done' : phase, name: slot ? slotName(slot, idx) : '', startedAt, setLengthMin: slot?.setLengthMin ?? 0,
     warnAtMin: slot?.warnAtMin ?? 0, position: done ? '' : `${idx + 1} of ${show.slots.length}`,
     next: next ? slotName(next, idx + 1) : '',
+    countDown,
   };
   const snapRef = useRef(snap);
   snapRef.current = snap;
@@ -301,12 +303,14 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
             <div className="who">{slotName(slot, idx)}</div>
             <div className="muted">{slot.track ? `♪ ${slot.track.name} — ${slot.track.artist}` : 'No walk-up song'}{slot.notes && ` · ${slot.notes}`}</div>
             <div className={`clock ${phase === 'timing' && st ? st.state : 'idle'}`}>
-              {phase === 'timing' ? formatClock(elapsed) : '0:00'}
+              {phase === 'timing' ? clockText(elapsed, slot.setLengthMin, countDown) : idleClockText(slot.setLengthMin, countDown)}
             </div>
             <div className={`bar ${phase === 'timing' && st ? st.state : ''}`}><i style={{ width: `${pct}%` }} /></div>
             <div className="muted mb-5">
               {phase === 'timing' && st
-                ? st.state === 'over' ? `Over by ${formatClock(st.overMs)}` : `${formatClock(st.remainingMs)} left of ${slot.setLengthMin} min`
+                ? countDown
+                  ? `On stage ${formatClock(elapsed)} of ${slot.setLengthMin} min`
+                  : st.state === 'over' ? `Over by ${formatClock(st.overMs)}` : `${formatClock(st.remainingMs)} left of ${slot.setLengthMin} min`
                 : `Set length ${slot.setLengthMin} min`}
             </div>
             <div className="controls">
@@ -319,9 +323,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
             {phase === 'walkup' && settings.autoStartTimer && slot.track && ready && (
               <div className="muted mt-3" role="status">Timer starts automatically when the music stops.</div>
             )}
-            {!lightMode && (
-              <div className="mt-3"><button onClick={openTimerWindow} title="Opens a copy of the timer you can drag to the comedian's screen">⧉ Open comedian timer window</button></div>
-            )}
+            <div className="mt-3"><button onClick={openTimerWindow} title="Opens a copy of the timer you can drag to the comedian's screen">⧉ Open comedian timer window</button></div>
             <div className="muted mt-4">
               <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop
               {!ready && ' · Spotify not connected: timer works, music is off'}
@@ -395,21 +397,35 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
         <h2 className="m-0">Time warning</h2>
         <p className="muted my-2">How does the comedian know their time is running out?</p>
         <div className="seg" role="radiogroup" aria-label="Time warning mode">
-          <button role="radio" aria-checked={lightMode} className={lightMode ? 'on' : ''}
-            onClick={() => setSettings((s) => ({ ...s, warningMode: 'light' }))}>Stage light</button>
           <button role="radio" aria-checked={!lightMode} className={!lightMode ? 'on' : ''}
-            onClick={() => setSettings((s) => ({ ...s, warningMode: 'display' }))}>Pop-out timer</button>
+            onClick={() => setSettings((s) => ({ ...s, warningMode: 'display' }))}>Timer only (no warning light)</button>
+          <button role="radio" aria-checked={lightMode} className={lightMode ? 'on' : ''}
+            onClick={() => setSettings((s) => ({ ...s, warningMode: 'light' }))}>Lights go red</button>
         </div>
-        {!lightMode && (
-          <>
-            <p className="muted my-2">
-              The stage light stays off. Open the timer window, drag it to the screen facing the stage, and double-click it
-              for full screen. It shows only a clock counting up from 0:00, on a black screen: the numbers are white, turn yellow at each act's light-warning time and red when time is up.
-              It only works while Live mode is open in this browser.
-            </p>
-            <button className="primary" onClick={openTimerWindow}>⧉ Open comedian timer window</button>
-          </>
-        )}
+        <p className="muted my-2">
+          {lightMode
+            ? "At each act's light-warning time the lights fire the Light warning look (a red flash by default), and Time's up when the set length is reached. Change those looks on the Lights screen."
+            : "No warning light: the lights stay on the On stage look for the whole set. The timer is the warning: it turns yellow at each act's light-warning time and red when time is up."}
+        </p>
+        <h3 className="mt-3 mb-2">Timer counts</h3>
+        <div className="seg" role="radiogroup" aria-label="Timer counts">
+          <button role="radio" aria-checked={!countDown} className={!countDown ? 'on' : ''}
+            onClick={() => setSettings((s) => ({ ...s, timerCounts: 'up' }))}>Up from 0:00</button>
+          <button role="radio" aria-checked={countDown} className={countDown ? 'on' : ''}
+            onClick={() => setSettings((s) => ({ ...s, timerCounts: 'down' }))}>Down to 0:00</button>
+        </div>
+        <p className="muted my-2">
+          {countDown
+            ? 'The clock starts at the set length and reaches 0:00 when time is up, then shows overtime as +0:12 in red.'
+            : 'The clock shows how long the comedian has been on stage, and keeps counting past the set length in red.'}
+          {' '}This applies to the clock here and to the comedian timer window.
+        </p>
+        <p className="muted my-2">
+          <strong>Comedian timer window:</strong> drag it to the screen facing the stage and double-click it for full screen.
+          It shows only the clock on a black screen: white numbers, yellow at the light-warning time, red when time is up.
+          It only works while Live mode is open in this browser.
+        </p>
+        <button className={lightMode ? '' : 'primary'} onClick={openTimerWindow}>⧉ Open comedian timer window</button>
       </div>
       <div className="card">
         <div className="row wrap">
@@ -419,7 +435,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
         </div>
         <p className="muted mt-2">
           Each moment of the show fires a look: walk-up, on stage, light warning, time's up, between acts and end of show.
-          {lightMode ? '' : ' In pop-out timer mode the lights never go red; the timer window is the time warning.'}
+          {lightMode ? '' : ' Timer only mode: there is no warning light, so the lights stay on the On stage look for the whole set.'}
           {' '}Choose the looks, build new ones and start the microphone on the Lights screen.
         </p>
         <ConnectionBar engine={dmx} />

@@ -350,3 +350,4 @@ body:has(.tw){margin:0;background:#000}
   .cue-row{grid-template-columns:1fr}
 }
 .looks-pick span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cue-row.unused{opacity:.55}

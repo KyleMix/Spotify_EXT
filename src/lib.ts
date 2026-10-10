@@ -47,6 +47,20 @@ export function timerStatus(elapsedMs: number, setLengthMin: number, warnAtMin: 
   return { remainingMs, overMs: Math.max(0, -remainingMs), state };
 }
 
+/**
+ * The big clock's text. Counting up: time on stage. Counting down: time left (it reads the full set length at the
+ * start and 0:00 exactly when time is up), then overtime as "+0:12".
+ */
+export function clockText(elapsedMs: number, setLengthMin: number, countDown: boolean): string {
+  if (!countDown) return formatClock(Math.max(0, elapsedMs));
+  const remainingMs = setLengthMin * 60_000 - elapsedMs;
+  if (remainingMs > 0) return formatClock(Math.ceil(remainingMs / 1000) * 1000);
+  return `+${formatClock(-remainingMs)}`;
+}
+
+/** The clock before an act starts: 0:00 counting up, the full set length counting down. */
+export const idleClockText = (setLengthMin: number, countDown: boolean) => (countDown ? formatClock(setLengthMin * 60_000) : '0:00');
+
 export function formatClock(ms: number): string {
   const sign = ms < 0 ? '-' : '';
   const total = Math.floor(Math.abs(ms) / 1000);
