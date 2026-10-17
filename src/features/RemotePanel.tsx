@@ -1,6 +1,8 @@
 import { ACTIONS, keyLabel, type Action, type Bindings } from './clicker';
 
 interface Props {
+  /** Live-band night: hide the music-only controls. */
+  band?: boolean;
   bindings: Bindings;
   listening: Action | null;
   lastKey: string;
@@ -9,7 +11,7 @@ interface Props {
   onReset: () => void;
 }
 
-export function RemotePanel({ bindings, listening, lastKey, onListen, onClear, onReset }: Props) {
+export function RemotePanel({ band, bindings, listening, lastKey, onListen, onClear, onReset }: Props) {
   return (
     <div className="card">
       <div className="row">
@@ -25,7 +27,7 @@ export function RemotePanel({ bindings, listening, lastKey, onListen, onClear, o
         only reach the window in front, so keep this tab active. The extra controls start unassigned.
       </p>
       <div className="grid">
-        {ACTIONS.map((a) => (
+        {ACTIONS.filter((a) => !(band && a.music)).map((a) => (
           <div key={a.id} className="row wrap">
             <div className="minw-170">
               <div className="fw-semibold">{a.label}</div>

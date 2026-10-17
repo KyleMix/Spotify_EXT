@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Show } from '../types';
-import { actCount, showTrackUris, DEFAULTS, clockText, idleClockText, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
+import { actCount, showTrackUris, usesSpotify, DEFAULTS, clockText, idleClockText, formatClock, hasWalkOff, isBlankSlot, MAX_SPOTS, slotName, timerStatus } from '../lib';
 import type { WalkUpPlayer } from '../spotify/player';
 import {
   bindKey, canFire, DEFAULT_BINDINGS, isBindable, keyLabel, loadBindings, resolveAction, saveBindings, unbindAction,
@@ -8,27 +8,23 @@ import {
 } from './clicker';
 import { TestRun } from './TestRun';
 import { RemotePanel } from './RemotePanel';
-import type { LightEngine } from '../lights/engine';
-import { ConnectionBar } from '../lights/ui/LightsScreen';
-import { LightsDock } from '../lights/ui/LightsDock';
-import { lightingReadiness } from '../lights/readiness';
-import { showMoment } from '../lights/looks';
-import { OFF, RED } from '../lights/color';
 import { TIMER_CHANNEL, TIMER_WINDOW_NAME, parseMessage, type TimerSnapshot } from './timerSync';
 import { clampFade, FADE_MAX_MS, FADE_MIN_MS, loadSettings, saveSettings, type AudioSettings } from './settings';
 
 type Phase = 'cued' | 'walkup' | 'timing';
 interface LogEntry { name: string; elapsedMs: number; setLengthMin: number }
 
-export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLights }: {
-  /** Switch to the Lights screen. */
-  onOpenLights: () => void;
+export function Live({ show, player: spotifyPlayer, ready: spotifyReady, resize, unplayable }: {
   /** Songs the last "Check songs" run found unavailable. */
   unplayable: string[];
-  show: Show; player: WalkUpPlayer | null; ready: boolean; dmx: LightEngine;
+  show: Show; player: WalkUpPlayer | null; ready: boolean;
   /** Grow/shrink the comedian list; slots before `keepFrom` are protected. */
   resize: (count: number, keepFrom: number) => void;
 }) {
+  // Live-band night: no music at all, so every step below behaves as if Spotify were absent.
+  const band = !usesSpotify(show);
+  const player = band ? null : spotifyPlayer;
+  const ready = !band && spotifyReady;
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>('cued');
   const [startedAt, setStartedAt] = useState(0);
@@ -41,8 +37,6 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const [lastKey, setLastKey] = useState('');
   const [settings, setSettings] = useState<AudioSettings>(loadSettings);
   const [closingPlaying, setClosingPlaying] = useState(false);
-  // A walk-off song is playing after a set (the lights' Walk-off moment); cleared when the music goes quiet.
-  const [walkOffPlaying, setWalkOffPlaying] = useState(false);
   // A pre-show test run is playing: the real show controls are locked until it stops.
   const [testing, setTesting] = useState(false);
   const [testStop, setTestStop] = useState(0);
@@ -80,7 +74,6 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   useEffect(() => {
     if (!player) return;
     player.onSilent = () => {
-      setWalkOffPlaying(false);
       if (!armedRef.current || phaseRef.current !== 'walkup' || !settingsRef.current.autoStartTimer) return;
       armedRef.current = false;
       setStartedAt(Date.now());
@@ -95,17 +88,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
 
   const elapsed = phase === 'timing' ? now - startedAt : 0;
   const st = slot ? timerStatus(elapsed, slot.setLengthMin, slot.warnAtMin) : null;
-  // In pop-out display mode the lights never go red; the comedian watches the second-screen timer instead.
-  const lightMode = settings.warningMode === 'light';
   const countDown = settings.timerCounts === 'down';
-  // Tell the lights where the show is; each moment fires the look chosen for it on the Lights screen.
-  const moment = showMoment({
-    done, phase, elapsedMs: elapsed, setLengthMin: slot?.setLengthMin ?? 0, warnAtMin: slot?.warnAtMin ?? 0,
-    pulseSec: dmx.show.warnPulseSec, redCues: lightMode,
-    preshow: idx === 0 && showStart === null, walkOff: walkOffPlaying,
-  });
-  useEffect(() => { dmx.setShowMoment(moment); }, [dmx, moment]);
-  useEffect(() => () => dmx.setShowMoment(null), [dmx]);
 
   // Mirror the current act to the pop-out timer window (same browser, any number of copies).
   const snap: TimerSnapshot = {
@@ -152,7 +135,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const playWalkup = () => guard(async () => {
     if (!slot) return;
     if (showStart === null) setShowStart(Date.now());
-    setWalkOffPlaying(false);
+    if (band) { setStartedAt(Date.now()); setPhase('timing'); return; } // no walk-up: straight to the timer
     if (slot.track && player && ready) {
       await player.unlock();
       await player.play(slot.track, slot.startOffsetMs, slot.cueLengthMs);
@@ -174,7 +157,6 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
         // Walk-off is comedians only; hosts and breaks just fade out.
         if (slot && hasWalkOff(slot)) {
           await player.play(slot.walkOffTrack!, slot.walkOffStartMs ?? 0, slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs, 400);
-          setWalkOffPlaying(true);
         } else {
           fadeOutNow();
         }
@@ -183,10 +165,9 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
     setIdx((i) => i + 1);
     setPhase('cued');
   });
-  const skip = () => guard(async () => { armedRef.current = false; setWalkOffPlaying(false); fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
+  const skip = () => guard(async () => { armedRef.current = false; fadeOutNow(); setIdx((i) => Math.min(show.slots.length, i + 1)); setPhase('cued'); });
   const back = () => {
     armedRef.current = false;
-    setWalkOffPlaying(false);
     if (closingPlaying) { fadeOutNow(); setClosingPlaying(false); }
     setIdx((i) => Math.max(0, i - 1));
     setPhase('cued');
@@ -205,15 +186,13 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
   const primaryRef = useRef(primary);
   primaryRef.current = primary;
 
-  const fade = () => guard(async () => { setTestStop((n) => n + 1); setClosingPlaying(false); setWalkOffPlaying(false); fadeOutNow(); });
+  const fade = () => guard(async () => { setTestStop((n) => n + 1); setClosingPlaying(false); fadeOutNow(); });
   const panic = () => guard(async () => { setTestStop((n) => n + 1); await player?.panic(); });
   const actions: Record<Action, () => unknown> = {
     next: primary, fade, panic,
     skip: () => { if (!done) return skip(); },
     back,
     closing: () => { if (done) return closing(); }, // only meaningful once the last act has finished
-    lightRed: () => dmx.test(RED),
-    lightOff: () => dmx.test(OFF),
   };
   const handlers = useRef(actions);
   handlers.current = actions;
@@ -281,15 +260,11 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
       )}
       {phase === 'cued' && idx === 0 && !showStart && (
         <div className="card muted" role="status">
+          {band ? <>Live band night: no Spotify needed. Press <b>Start set</b> when each act takes the stage.</> : <>
           Ready check: {ready ? '✅ Spotify ready' : '⚠️ Spotify not ready (timer works, music is off)'} ·{' '}
           {missingSongs === 0 ? '✅ every comedian has a walk-up song' : `⚠️ ${missingSongs} comedian${missingSongs === 1 ? ' has' : 's have'} no walk-up song`}
           {badCount > 0 && <> · <span className="text-danger">⚠️ {badCount} song{badCount === 1 ? ' is' : 's are'} unavailable on Spotify (see Edit)</span></>}
-          {lightingReadiness({
-            rig: dmx.rig, looks: dmx.looksState, connected: dmx.status === 'connected', micOn: dmx.sound.status === 'on',
-            blackout: dmx.blackout, redCues: lightMode,
-          }).map((item) => (
-            <span key={item.text}> · <span className={item.ok ? '' : 'text-danger'}>{item.ok ? '✅' : '⚠️'} {item.text}</span></span>
-          ))}
+          </>}
         </div>
       )}
       <div className="card stage">
@@ -298,7 +273,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
             <div className="phase">Show complete</div>
             <div className="who">That's a wrap 🎤</div>
             <div className="muted">Total running time {runningTotal}</div>
-            {show.closingTrack ? (
+            {band ? null : show.closingTrack ? (
               <>
                 <div className="muted mt-4">♪ {show.closingTrack.name} — {show.closingTrack.artist}</div>
                 <div className="controls mt-4">
@@ -316,7 +291,7 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
               {phase === 'cued' ? 'Up next' : phase === 'walkup' ? 'Walk-up playing' : 'On stage'} · {idx + 1} of {show.slots.length}
             </div>
             <div className="who">{slotName(slot, idx)}</div>
-            <div className="muted">{slot.track ? `♪ ${slot.track.name} — ${slot.track.artist}` : 'No walk-up song'}{slot.notes && ` · ${slot.notes}`}</div>
+            <div className="muted">{band ? slot.notes : <>{slot.track ? `♪ ${slot.track.name} — ${slot.track.artist}` : 'No walk-up song'}{slot.notes && ` · ${slot.notes}`}</>}</div>
             <div className={`clock ${phase === 'timing' && st ? st.state : 'idle'}`}>
               {phase === 'timing' ? clockText(elapsed, slot.setLengthMin, countDown) : idleClockText(slot.setLengthMin, countDown)}
             </div>
@@ -330,29 +305,30 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
             </div>
             <div className="controls">
               <button className="primary" disabled={testing} title={testing ? 'Stop the test run first' : ''} onClick={() => void primary()}>
-                {phase === 'cued' ? '▶ Play walk-up' : phase === 'walkup' ? '🎤 On stage — start timer now' : '■ End set'}
+                {phase === 'cued' ? (band ? '▶ Start set' : '▶ Play walk-up') : phase === 'walkup' ? '🎤 On stage — start timer now' : '■ End set'}
               </button>
-              <button onClick={() => void fade()}>Fade out</button>
-              <button className="danger" onClick={() => void panic()}>Panic stop</button>
+              {!band && <>
+                <button onClick={() => void fade()}>Fade out</button>
+                <button className="danger" onClick={() => void panic()}>Panic stop</button>
+              </>}
             </div>
             {phase === 'walkup' && settings.autoStartTimer && slot.track && ready && (
               <div className="muted mt-3" role="status">Timer starts automatically when the music stops.</div>
             )}
             <div className="mt-3"><button onClick={openTimerWindow} title="Opens a copy of the timer you can drag to the comedian's screen">⧉ Open comedian timer window</button></div>
             <div className="muted mt-4">
-              <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop
-              {!ready && ' · Spotify not connected: timer works, music is off'}
+              <kbd>{keyLabel(bindings.next[0] ?? '')}</kbd> next step
+              {!band && <> · <kbd>{keyLabel(bindings.fade[0] ?? '')}</kbd> fade out · <kbd>{keyLabel(bindings.panic[0] ?? '')}</kbd> panic stop</>}
+              {!band && !ready && ' · Spotify not connected: timer works, music is off'}
             </div>
           </>
         )}
       </div>
 
-      <LightsDock engine={dmx} onOpenLights={onOpenLights} />
-
       <div className="grid g2">
         <div className="card next">
           <div><div className="muted">NEXT</div><div className="fw-semibold fs-lg">{next ? slotName(next, idx + 1) : '—'}</div>
-            <div className="muted">{next?.track ? `♪ ${next.track.name}` : ''}</div></div>
+            <div className="muted">{!band && next?.track ? `♪ ${next.track.name}` : ''}</div></div>
           <div className="row"><button onClick={back} disabled={idx === 0 || testing}>← Back</button><button onClick={() => void skip()} disabled={done || testing}>Skip →</button></div>
         </div>
         <div className="card">
@@ -388,10 +364,10 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
       </div>
       </div>
       <div className="live-view" id="live-view-setup" role="tabpanel" aria-labelledby="live-tab-setup" hidden={view !== 'setup'}>
-      {phase === 'cued' && idx === 0 && !showStart && !done && (
+      {!band && phase === 'cued' && idx === 0 && !showStart && !done && (
         <TestRun show={show} player={player} ready={ready} onActive={setTesting} stopSignal={testStop} />
       )}
-      <div className="card">
+      {!band && <div className="card">
         <div className="row">
           <h2 className="m-0">Fade length</h2>
           <div className="spacer" />
@@ -409,20 +385,11 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
             onChange={(e) => setSettings((s) => ({ ...s, autoStartTimer: e.target.checked }))} />
           Start the timer automatically when the walk-up music stops
         </label>
-      </div>
+      </div>}
       <div className="card">
-        <h2 className="m-0">Time warning</h2>
-        <p className="muted my-2">How does the comedian know their time is running out?</p>
-        <div className="seg" role="radiogroup" aria-label="Time warning mode">
-          <button role="radio" aria-checked={!lightMode} className={!lightMode ? 'on' : ''}
-            onClick={() => setSettings((s) => ({ ...s, warningMode: 'display' }))}>Timer only (no warning light)</button>
-          <button role="radio" aria-checked={lightMode} className={lightMode ? 'on' : ''}
-            onClick={() => setSettings((s) => ({ ...s, warningMode: 'light' }))}>Lights go red</button>
-        </div>
+        <h2 className="m-0">Timer</h2>
         <p className="muted my-2">
-          {lightMode
-            ? "At each act's light-warning time the lights fire the Light warning look (a red flash by default), and Time's up when the set length is reached. Change those looks on the Lights screen."
-            : "No warning light: the lights stay on the On stage look for the whole set. The timer is the warning: it turns yellow at each act's light-warning time and red when time is up."}
+          The timer is the comedian's warning: it turns yellow at each act's warning time and red when time is up.
         </p>
         <h3 className="mt-3 mb-2">Timer counts</h3>
         <div className="seg" role="radiogroup" aria-label="Timer counts">
@@ -439,25 +406,12 @@ export function Live({ show, player, ready, dmx, resize, unplayable, onOpenLight
         </p>
         <p className="muted my-2">
           <strong>Comedian timer window:</strong> drag it to the screen facing the stage and double-click it for full screen.
-          It shows only the clock on a black screen: white numbers, yellow at the light-warning time, red when time is up.
+          It shows only the clock on a black screen: white numbers, yellow at the warning time, red when time is up.
           It only works while Live mode is open in this browser.
         </p>
-        <button className={lightMode ? '' : 'primary'} onClick={openTimerWindow}>⧉ Open comedian timer window</button>
+        <button className="primary" onClick={openTimerWindow}>⧉ Open comedian timer window</button>
       </div>
-      <div className="card">
-        <div className="row wrap">
-          <h2 className="m-0">Lights</h2>
-          <div className="spacer" />
-          <button className="mini" onClick={onOpenLights}>Open Lights screen</button>
-        </div>
-        <p className="muted mt-2">
-          Each moment of the show fires a look: walk-up, on stage, light warning, time's up, between acts and end of show.
-          {lightMode ? '' : ' Timer only mode: there is no warning light, so the lights stay on the On stage look for the whole set.'}
-          {' '}Choose the looks, build new ones and start the microphone on the Lights screen.
-        </p>
-        <ConnectionBar engine={dmx} />
-      </div>
-      <RemotePanel bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
+      <RemotePanel band={band} bindings={bindings} listening={listening} lastKey={lastKey} onListen={setListening}
         onClear={(a) => setBindings((b) => unbindAction(b, a))} onReset={() => setBindings(DEFAULT_BINDINGS)} />
       </div>
       {err && <div className="toast" role="alert">{err}</div>}

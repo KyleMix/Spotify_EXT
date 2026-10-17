@@ -2,18 +2,17 @@
  * Bluetooth clickers / presentation remotes / page turners show up as ordinary keyboards,
  * so "supporting" them means mapping key codes to show actions, with anti-double-press protection.
  */
-export type Action = 'next' | 'fade' | 'panic' | 'skip' | 'back' | 'closing' | 'lightRed' | 'lightOff';
+export type Action = 'next' | 'fade' | 'panic' | 'skip' | 'back' | 'closing';
 export type Bindings = Record<Action, string[]>;
 
-export const ACTIONS: { id: Action; label: string; hint: string }[] = [
+/** `music` actions only matter when Spotify plays; they are hidden on live-band nights. */
+export const ACTIONS: { id: Action; label: string; hint: string; music?: boolean }[] = [
   { id: 'next', label: 'Next step', hint: 'Play walk-up → start timer → end set' },
-  { id: 'fade', label: 'Fade out music', hint: 'Uses your Fade length setting' },
-  { id: 'panic', label: 'Panic stop', hint: 'Cut the music instantly' },
+  { id: 'fade', label: 'Fade out music', hint: 'Uses your Fade length setting', music: true },
+  { id: 'panic', label: 'Panic stop', hint: 'Cut the music instantly', music: true },
   { id: 'skip', label: 'Skip act', hint: 'Jump to the next act without playing anything' },
   { id: 'back', label: 'Back one act', hint: 'Return to the previous act' },
-  { id: 'closing', label: 'Play end-of-show song', hint: 'After the last act; press again to fade it out' },
-  { id: 'lightRed', label: 'Stage light red (test)', hint: 'Turns the light red for 4 seconds' },
-  { id: 'lightOff', label: 'Stage light off', hint: 'Cancels a light test' },
+  { id: 'closing', label: 'Play end-of-show song', hint: 'After the last act; press again to fade it out', music: true },
 ];
 
 /** Typical clicker output: Next = →/PgDn, Previous = ←/PgUp, Blank screen = B/period. */
@@ -25,13 +24,11 @@ export const DEFAULT_BINDINGS: Bindings = {
   skip: [],
   back: [],
   closing: [],
-  lightRed: [],
-  lightOff: [],
 };
 
 /** Minimum gap between repeats of an action; stops a double-click from skipping an act. */
 export const LOCKOUT_MS: Record<Action, number> = {
-  next: 500, fade: 300, panic: 0, skip: 500, back: 500, closing: 500, lightRed: 0, lightOff: 0,
+  next: 500, fade: 300, panic: 0, skip: 500, back: 500, closing: 500,
 };
 
 const STORAGE_KEY = 'walkup.clicker.v1';

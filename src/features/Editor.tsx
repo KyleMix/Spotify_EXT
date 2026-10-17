@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Show, Slot, Track } from '../types';
-import { actCount, applyWalkOffToAll, DEFAULTS, slotDefaults, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
+import { actCount, applyWalkOffToAll, usesSpotify, DEFAULTS, slotDefaults, isBlankSlot, MAX_SPOTS, moveItem, newSlot, resizeActs, slotName, totalPlannedMin } from '../lib';
 import { SongField, type Audition } from './SongField';
 import { SongBank } from './SongBank';
 import { rememberTrack } from './bank';
@@ -35,6 +35,8 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
   const [recentV, setRecentV] = useState(0);
   const slot = show.slots.find((s) => s.id === sel);
   const defs = slotDefaults(show);
+  // Live-band night: no songs anywhere, just names, set lengths and notes.
+  const spotify = usesSpotify(show);
   const noteSong = (t?: Track) => { if (t) { rememberTrack(t); setRecentV((v) => v + 1); } };
 
   const patch = (id: string, p: Partial<Slot>) => {
@@ -102,24 +104,37 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
   const setDefault = (p: Partial<typeof defs>) => update((s) => ({ ...s, defaults: { ...defs, ...p } }));
 
   return (
-    <div className="edit-layout">
+    <div className={`edit-layout${spotify ? '' : ' no-bank'}`}>
     <div className="grid gap-5 minw-0">
       <div className="card grid g3">
         <div><label>Show name</label><input value={show.name} onChange={(e) => update((s) => ({ ...s, name: e.target.value }))} /></div>
         <div><label>Date</label><input type="date" value={show.date} onChange={(e) => update((s) => ({ ...s, date: e.target.value }))} /></div>
         <div><label>Venue</label><input value={show.venue} onChange={(e) => update((s) => ({ ...s, venue: e.target.value }))} /></div>
+        <div className="col-full">
+          <label id="music-label">Music</label>
+          <div className="seg" role="radiogroup" aria-labelledby="music-label">
+            <button role="radio" aria-checked={spotify} className={spotify ? 'on' : ''}
+              onClick={() => update((s) => ({ ...s, music: 'spotify' }))}>Spotify walk-up songs</button>
+            <button role="radio" aria-checked={!spotify} className={!spotify ? 'on' : ''}
+              onClick={() => update((s) => ({ ...s, music: 'band' }))}>Live band (no Spotify)</button>
+          </div>
+          <div className="muted mt-1">
+            {spotify ? 'Each act can have a walk-up and walk-off song.'
+              : 'No music from the app: Live mode just runs the set list and the timer. Songs you already picked are kept for later.'}
+          </div>
+        </div>
         <details className="col-full">
           <summary className="pointer">Defaults for new spots</summary>
           <div className="muted my-2">Used when you add spots with the Spots menu or + Spot. Spots already in the list are not changed.</div>
           <div className="grid g3">
             <div><label>Set length (minutes)</label><input type="number" min={0} value={defs.setLengthMin} onChange={(e) => setDefault({ setLengthMin: num(e.target.value, 10) })} /></div>
             <div><label>Warning at (minutes left)</label><input type="number" min={0} value={defs.warnAtMin} onChange={(e) => setDefault({ warnAtMin: num(e.target.value, 2) })} /></div>
-            <div><label>Walk-up plays for (seconds)</label><input type="number" min={0} value={defs.cueLengthMs / 1000} onChange={(e) => setDefault({ cueLengthMs: num(e.target.value, 25) * 1000 })} /></div>
+            {spotify && <div><label>Walk-up plays for (seconds)</label><input type="number" min={0} value={defs.cueLengthMs / 1000} onChange={(e) => setDefault({ cueLengthMs: num(e.target.value, 25) * 1000 })} /></div>}
           </div>
         </details>
       </div>
 
-      <div className="card">
+      {spotify && <div className="card">
         {isBad(show.closingTrack) && <div role="alert" className="text-danger mb-2">⚠ Spotify says the end-of-show song is unavailable. Pick another.</div>}
         <SongField label="End-of-show song" kind="end-of-show" track={show.closingTrack} startMs={show.closingStartMs ?? 0}
           cueMs={show.closingCueMs ?? DEFAULTS.closingCueMs} cueLabel="Play for (seconds, 0 = until you fade it out)"
@@ -131,7 +146,7 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
             ...(p.startMs !== undefined ? { closingStartMs: p.startMs } : {}),
             ...(p.cueMs !== undefined ? { closingCueMs: p.cueMs } : {}),
           }))} />
-      </div>
+      </div>}
 
       <div className="split">
         <div className="grid">
@@ -149,7 +164,7 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
             <button onClick={() => add('host')}>+ Host</button>
             <button onClick={() => add('break')}>+ Break</button>
           </div>
-          {canSearch && (show.slots.some((x) => x.track || x.walkOffTrack) || show.closingTrack) ? (
+          {spotify && canSearch && (show.slots.some((x) => x.track || x.walkOffTrack) || show.closingTrack) ? (
             <div className="row wrap">
               <button className="mini" disabled={!canSearch || songCheck.state === 'checking'} onClick={onCheckSongs}
                 title="Ask Spotify whether each chosen song can be played in your country">{songCheck.state === 'checking' ? 'Checking songs…' : '✔ Check songs are playable'}</button>
@@ -175,13 +190,13 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
               <div className="grow">
                 <div className="title">{s.performer || <span className="muted">{slotName(s, i)}</span>}{s.type !== 'act' && <span className="pill ml-2">{s.type}</span>}</div>
                 <div className="chips">
-                  <SongChip tag="Up" track={s.track} bad={isBad(s.track)} />
-                  {s.type === 'act' && <SongChip tag="Off" track={s.walkOffTrack} bad={isBad(s.walkOffTrack)} />}
+                  {spotify && <SongChip tag="Up" track={s.track} bad={isBad(s.track)} />}
+                  {spotify && s.type === 'act' && <SongChip tag="Off" track={s.walkOffTrack} bad={isBad(s.walkOffTrack)} />}
                   <span className="muted">{s.setLengthMin} min</span>
                 </div>
-                <div className="muted">
+                {spotify && <div className="muted">
                   {isBad(s.track) && <span className="text-danger" title="Spotify says this walk-up song is unavailable. Pick another."> ⚠ walk-up unavailable</span>}
-                  {isBad(s.walkOffTrack) && <span className="text-danger" title="Spotify says this walk-off song is unavailable. Pick another."> ⚠ walk-off unavailable</span>}</div>
+                  {isBad(s.walkOffTrack) && <span className="text-danger" title="Spotify says this walk-off song is unavailable. Pick another."> ⚠ walk-off unavailable</span>}</div>}
               </div>
               <div className="arrows">
               <button className="ghost" aria-label="Move up" disabled={i === 0} onClick={(e) => { e.stopPropagation(); reorder(i, i - 1); }}>↑</button>
@@ -203,7 +218,7 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
                   </select></div>
               </div>
 
-              <SongField label="Walk-up song" kind="walk-up" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
+              {spotify && <SongField label="Walk-up song" kind="walk-up" track={slot.track} startMs={slot.startOffsetMs} cueMs={slot.cueLengthMs}
                 cueLabel="Play walk-up for (sec, 0 = until stopped)" canSearch={canSearch} audition={audition} dropActive={dragging || Boolean(held)} held={held}
                 onDropTrack={(t) => { assignTo(slot, show.slots.indexOf(slot), 'walk-up', t); setHeld(null); }}
                 hint={slot.track ? undefined : `Tip: ${DEFAULTS.walkUpCueMs / 1000}s is a good starting length. Start on the hook.`}
@@ -211,9 +226,9 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
                   ...('track' in p ? { track: p.track } : {}),
                   ...(p.startMs !== undefined ? { startOffsetMs: p.startMs } : {}),
                   ...(p.cueMs !== undefined ? { cueLengthMs: p.cueMs } : {}),
-                })} />
+                })} />}
 
-              {slot.type === 'act' && (
+              {spotify && slot.type === 'act' && (
                 <SongField label="Walk-off song" kind="walk-off" track={slot.walkOffTrack} startMs={slot.walkOffStartMs ?? 0}
                   cueMs={slot.walkOffCueMs ?? DEFAULTS.walkOffCueMs} cueLabel="Play walk-off for (sec, 0 = until stopped)"
                   canSearch={canSearch} audition={audition} dropActive={dragging || Boolean(held)} held={held}
@@ -225,7 +240,7 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
                     ...(p.cueMs !== undefined ? { walkOffCueMs: p.cueMs } : {}),
                   })} />
               )}
-              {slot.type === 'act' && slot.walkOffTrack && actCount(show.slots) > 1 && (
+              {spotify && slot.type === 'act' && slot.walkOffTrack && actCount(show.slots) > 1 && (
                 <div className="row">
                   <button className="mini" title="Copy this walk-off song and timing to every comedian in the lineup"
                     onClick={() => {
@@ -239,9 +254,9 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
               <div className="grid g2">
                 <div><label>Set length (minutes)</label>
                   <input type="number" min={0} value={slot.setLengthMin} onChange={(e) => patch(slot.id, { setLengthMin: num(e.target.value) })} /></div>
-                <div><label>Warning light at (minutes left)</label>
+                <div><label>Warning at (minutes left)</label>
                   <input type="number" min={0} value={slot.warnAtMin} onChange={(e) => patch(slot.id, { warnAtMin: num(e.target.value) })} />
-                  <div className="muted mt-1">The timer turns amber (and the stage light flashes) this many minutes before time is up.</div></div>
+                  <div className="muted mt-1">The timer turns yellow this many minutes before time is up.</div></div>
               </div>
               <div><label>Notes / intro (shown on the Live screen)</label><textarea rows={3} value={slot.notes} onChange={(e) => patch(slot.id, { notes: e.target.value })} /></div>
               <div className="row"><div className="spacer" /><button className="danger" onClick={() => { if (isBlankSlot(slot) || confirm(`Delete ${slotName(slot, show.slots.indexOf(slot))} from the lineup?`)) remove(slot.id); }}>Delete slot</button></div>
@@ -250,8 +265,8 @@ export function Editor({ show, update, canSearch, audition, songCheck, onCheckSo
         </div>
       </div>
     </div>
-    <SongBank connected={canSearch} slotLabel={slot ? slotName(slot, show.slots.indexOf(slot)) : undefined}
-      canSetWalkOff={slot?.type === 'act'} onAssign={assign} onDragState={setDragging} recentVersion={recentV} held={held} onHold={hold} />
+    {spotify && <SongBank connected={canSearch} slotLabel={slot ? slotName(slot, show.slots.indexOf(slot)) : undefined}
+      canSetWalkOff={slot?.type === 'act'} onAssign={assign} onDragState={setDragging} recentVersion={recentV} held={held} onHold={hold} />}
     {held && (
       <div className="snack hold" role="status">
         <span>Holding <b>{held.name}</b>. Press Enter on the walk-up or walk-off box to drop it, or Esc to cancel.</span>

@@ -156,6 +156,9 @@ export function nudgeStart(startMs: number, deltaSec: number, durationMs: number
   return Math.round(next / 100) * 100;
 }
 
+/** False when the show is a live-band night: no Spotify, just a timed set list. */
+export const usesSpotify = (show: Show) => show.music !== 'band';
+
 export const hasWalkOff = (s: Slot) => s.type === 'act' && Boolean(s.walkOffTrack);
 
 /** Upper limit for the quick "number of spots" list, to keep the dropdown and list manageable. */

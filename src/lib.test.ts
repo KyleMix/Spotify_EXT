@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults, showTrackUris, runSheetRows, describeCue } from './lib';
+import { formatClock, mergeData, moveItem, newShow, timerStatus, totalPlannedMin, newSlot, resizeActs, isBlankSlot, slotName, MAX_SPOTS, applyWalkOffToAll, slotDefaults, showTrackUris, runSheetRows, describeCue, usesSpotify } from './lib';
 
 describe('timerStatus', () => {
   it('is ok, warn, then over', () => {
@@ -177,5 +177,13 @@ describe('runSheetRows', () => {
   it('says so when a song plays until stopped', () => {
     expect(describeCue({ name: 'A', artist: 'B' }, 0, 0)).toBe('A — B (starts 0:00, plays until stopped)');
     expect(describeCue(undefined, 0, 0)).toBe('');
+  });
+});
+
+describe('usesSpotify', () => {
+  it('is on by default and off for a live-band night', () => {
+    expect(usesSpotify(newShow())).toBe(true);
+    expect(usesSpotify(newShow({ music: 'spotify' }))).toBe(true);
+    expect(usesSpotify(newShow({ music: 'band' }))).toBe(false);
   });
 });

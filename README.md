@@ -2,20 +2,21 @@
 
 A clean web app (installable PWA) for running a comedy show: build the lineup ahead of time,
 attach a Spotify walk-up song to each comedian, and run the night in a full-screen Live mode
-with a performance timer.
+with a performance timer. Live-band nights skip Spotify entirely and just run the timed set list.
 
 ## Features
 - **Edit mode:** drag-to-reorder lineup, host/break slots, Spotify song search, per-slot start point,
-  walk-up length, set length, light-warning time, notes; duplicate shows for recurring nights.
+  walk-up length, set length, warning time, notes; duplicate shows for recurring nights.
+- **Music: Spotify or live band.** Each show has a *Music* switch under the show details. **Spotify walk-up songs** is the
+  normal mode. **Live band (no Spotify)** hides every song control (walk-up, walk-off, end-of-show song, song bank, test run,
+  fade settings) and Live mode becomes a plain timed set list: *Start set* → *End set* → next act. Spotify doesn't need to be
+  connected. Songs already picked for the show are kept, so you can switch back.
 - **Live mode:** Play walk-up → On stage (music fades, timer starts) → End set. Big colour-coded
   timer (green / amber warning / red overtime), progress bar, next-up card, show clock, set-time log.
-- **Time warning: Timer only or Lights go red.** Live → Setup → *Time warning* (also on Lights → Show). **Timer only
-  (no warning light)** is for shows where the comedian just watches a timer: the lights stay on the On stage look for the
-  whole set. **Lights go red** fires the Light warning and Time's up looks.
 - **Timer counts up or down:** Live → Setup → *Timer counts*. *Up from 0:00* shows time on stage; *Down to 0:00* starts at the
   set length, hits 0:00 when time is up and then shows overtime as `+0:12`. Applies to the Live clock and the timer window.
 - **Comedian timer window:** *Open comedian timer window* (Live, either mode) shows nothing but the big clock on a black
-  background: white numbers, yellow at the light-warning time, red once the set length is reached. Drag it to the screen
+  background: white numbers, yellow at the warning time, red once the set length is reached. Drag it to the screen
   facing the stage and double-click for full screen. It mirrors Live mode in the same browser, so keep the main window open.
 - **Walk-off & closing song:** comedians can have a walk-off song that plays when you end their set
   (hosts and breaks never do). Each show can have an end-of-show song that plays on Next after the last act.
@@ -25,7 +26,7 @@ with a performance timer.
   A wording dropdown (*Seconds*, *Chorus / hook*, *Big moment*) lets you try another phrasing. Nothing is sent from
   the app; confirm by ear with Preview. Time fields accept `41` or `0:41`.
 - **Stream Deck / extra controls:** besides Next, Fade out and Panic stop, you can assign buttons to **Skip act,
-  Back one act, Play closing song, Stage light red (test) and Stage light off**. They start unassigned. In a Stream
+  Back one act and Play closing song**. They start unassigned. In a Stream
   Deck, add a *Hotkey* action set to a spare key (F13–F24), then in Live mode click *Add button* next to the action
   and press the Stream Deck key. Hotkeys only reach the window in front, so keep the Walk-Up tab active. Existing
   button assignments are kept when the app updates.
@@ -58,80 +59,13 @@ with a performance timer.
   the panel shows *Reconnect to allow playlists* (one click; your shows are untouched).
 
 - **Test run (Live mode, before the show):** *Play all* (or *Start at the first song*) plays each walk-up in lineup order, up to
-  15 seconds each, with *Previous* / *Next song* / *Stop test*. It doesn't touch the timer, the set log or the stage light, and the
+  15 seconds each, with *Previous* / *Next song* / *Stop test*. It doesn't touch the timer or the set log, and the
   real show controls are locked until you stop it (Fade out and Panic stop also end the test).
 - **Check songs are playable:** in Edit mode, one click asks Spotify whether each chosen song can be played in your country.
   Unavailable songs are marked ⚠ in the lineup and the end-of-show box, and the Live ready check counts them. Run it again after changing songs.
 - **Print run sheet:** the *Print run sheet* button prints a one-page lineup (planned start times, set lengths, each walk-up and
   walk-off with start point and length, notes, end-of-show song). Use your browser's print dialog to save it as a PDF.
 - **Theme:** the top-bar button cycles Dark → Light → Auto (follows your device). Search results have a *Show more results* button.
-
-## Lights (DMX)
-The **Lights** tab (the first tab) sets up, tests and controls DMX lights. It needs **Chrome or Edge** on a computer
-(Web Serial), on `http://127.0.0.1:5173` or an HTTPS site. See `docs/LIGHTING_PLAN.md` for the design and roadmap.
-
-The screen has five tabs: **Console**, **Looks**, **Show**, **Rig** and **Tools**.
-
-**Connecting:** pick the cable type (*Open DMX (FTDI) cable*, e.g. DSD TECH SH-RS09B, or a *DMX USB Pro-style
-interface*), click **Connect lights** and choose the cable's serial port. Later visits reconnect automatically. The bar
-shows frames per second (below 20 can flicker) and whether frames are sent from a background worker or the page.
-**Blackout** turns every light dark until pressed again.
-
-**Rig tab:** the lights on the chain.
-1. Cable the computer into the first light's **DMX IN**, its **DMX OUT** into the next light's **DMX IN**, and so on. The cable
-   order doesn't matter; each light only listens to its own channels, so ranges must not overlap (the tab warns if they do).
-2. **Add a light:** pick its type and DMX mode, then **Add to the chain**. It gets the first free address. Each light shows how
-   to set that address on the light itself: the display reading (`d016`) or a picture of which **DIP switches** go on.
-3. Built-in types: **Chauvet 4BAR Flex** in **15-CH** (each pod its own color; the app holds channel 1 at 0 so the bar stays in
-   DMX color mode, the dimmer at full and strobe off) or **3-CH** (whole bar one color); **Irradiant Neo-Slim Par Bar 48**
-   in 12-CH (layout *assumed*, confirm it with the tester); generic RGB and dimmer + RGB lights.
-4. **Custom light types:** for lights not in the list or whose channels differ from the manual. Describe each channel
-   (red/green/blue/white/amber with its pixel, dimmer, strobe, mode/control with the value to hold). *Copy and edit this type*
-   starts from a built-in one. Lights saved by older versions of the app are moved over automatically.
-
-**Tools tab:**
-- **Rig check:** steps every pod/par of every light through red, green, blue and white with everything else dark, naming each
-  step (e.g. *Neo-Slim · Par 3 of 4 · blue*). Run it before every show.
-- **Learn this light:** in the channel tester, press **Step through channels**. For each channel, pick where the light lit
-  (*Whole light* or *Par/Pod 1, 2, …*) and its color (or *Nothing happened*, *It flashed / strobed*, *It ran a program*);
-  the next channel comes up by itself. Raise *Channels in the light's mode* to test past the current layout (up to 64).
-  **Save as this light's type** creates a custom light type from the answers and switches the light to it. Use this for
-  lights whose manual is missing or wrong, like the Neo-Slim.
-- **Channel tester:** a slider per channel of one light. **Step through channels** puts one channel at full with the rest at
-  their home values, the quickest way to learn an unknown light. *Other lights dark while testing* is on by default.
-- **Universe monitor:** the live value of every DMX channel, colored by which light owns it.
-
-**Looks tab:** a look is a saved lighting state: an effect for all lights (*Solid*, *Pulse*, *Chase* across every pod and
-par of the rig, *Rainbow*, *Strobe* capped at 10 flashes a second with a photosensitivity warning, *Off*; and music effects that follow the
-microphone: *Beat colors*, *Beat chase* (one pod/par steps along the rig per beat), *Ripple* (a wave crosses the rig on
-each beat), *Music meter* (pods fill green→red with the volume), *Bass / mid / treble* (thirds of the rig follow each band)
-and *Color to music* (your colors, brightness following the volume)),
-colors, speed, level and a **fade-in time**, plus optional per-light settings (e.g. one bar red, the other white). Edits save
-as you go; *Preview on the rig* shows it live. Give a look a **key** to fire it from any screen (Stream Deck *Hotkey* on
-F13–F24 works well); keys Live mode already uses are refused. Starting looks: Stage white, Sound reactive, Warning flash,
-Time's up, Warm wash, Rainbow, Blue chase, Beat chase, Ripple, Music meter, Bass / mid / treble (the music looks are
-added once to looks saved by earlier versions).
-
-**Running a show from Live mode:** the Stage screen has a **Lights** panel under the clock: what the lights are doing
-(e.g. *On stage → Stage white*), a live preview of every pod/par, the master dimmer, one-tap look buttons, **Back to show**
-and **Blackout** (*Hide* folds it away). Live's ready check also covers the lights: cable connected, rig problems,
-unconfirmed light types, blackout left on, and the microphone if a show cue uses a music look.
-
-**Console tab:** big buttons fire looks by hand. A fired look holds over the show until you click it again, fire another or
-press **Back to show**. *Back to show* and *Blackout* can each have a key too. **Master dimmer** scales every look. A live preview shows each pod/par.
-
-**Show tab:** which look each moment fires while Live mode is open: *Pre-show* (before the first walk-up), *Walk-up*,
-*On stage*, *Light warning* (lasts *Light warning lasts* seconds, then back to On stage), *Time's up* (until the act ends),
-*Walk-off* (while a walk-off song plays), *Between acts* and *End of show*. Defaults: warm wash before the show, sound
-reactive for walk-ups, walk-offs and between acts, Stage white on stage, red flash at the warning, red pulse when time's up,
-rainbow at the end. In **Timer only** mode the Light warning and Time's up cues aren't used: the lights never go red. The **microphone** for music looks is here too
-(start it after each reload). Its meter shows level, bass, mid, treble, a beat light and the gain. **Auto-adjust to the room**
-(on by default) follows the recent peak so quiet and loud rooms react alike; *Sound sensitivity* nudges it (5 = normal).
-Very quiet sound is ignored so room noise doesn't flicker the lights. With the mic off, music looks run a slow idle pattern. With Live mode closed, the lights are
-dark unless you fire a look.
-
-If the lights flicker on a long cable, add a 120 Ω DMX terminator plug in the **DMX OUT** of the last light on the chain.
-If the cable is unplugged mid-show, the timer keeps working and the bar shows "Lights offline".
 
 ## Setup
 1. Create an app at https://developer.spotify.com/dashboard. Add redirect URI

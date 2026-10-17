@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from './store';
 import { duplicateShow, newShow, resizeActs, showTrackUris, slotDefaults, validateImport } from './lib';
 import { checkTracks, getMe } from './spotify/api';
@@ -12,8 +12,6 @@ import { GettingStarted } from './features/GettingStarted';
 import { applyTheme, loadTheme, nextTheme, THEMES, type Theme } from './features/theme';
 import { applyDensity, loadDensity, nextDensity, type Density } from './features/density';
 import type { Track } from './types';
-import { LightEngine } from './lights/engine';
-import { LightsScreen } from './lights/ui/LightsScreen';
 
 /** Overflow menu: closes on outside click, Escape, or after an item is chosen. */
 function Menu({ label, children }: { label: string; children: (close: () => void) => React.ReactNode }) {
@@ -36,22 +34,8 @@ function Menu({ label, children }: { label: string; children: (close: () => void
 
 export function App() {
   const store = useStore();
-  const lights = useMemo(() => new LightEngine(), []);
-  useEffect(() => { lights.start(); void lights.autoConnect(); return () => lights.stop(); }, [lights]);
-  // Look keys (e.g. a Stream Deck on F13-F24) work on every screen, except while typing in a text field.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement;
-      const typing = el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'
-        || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes((el as HTMLInputElement).type));
-      if (typing || e.repeat) return;
-      if (lights.handleKey(e.code)) e.preventDefault();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lights]);
-  const [mode, setMode] = useState<'lights' | 'edit' | 'live'>(() => {
-    try { const m = sessionStorage.getItem('walkup.mode'); return m === 'edit' || m === 'live' ? m : 'lights'; } catch { return 'lights'; }
+  const [mode, setMode] = useState<'edit' | 'live'>(() => {
+    try { return sessionStorage.getItem('walkup.mode') === 'live' ? 'live' : 'edit'; } catch { return 'edit'; }
   });
   useEffect(() => { try { sessionStorage.setItem('walkup.mode', mode); } catch { /* ignore */ } }, [mode]);
   const [authed, setAuthed] = useState(isLoggedIn());
@@ -136,9 +120,8 @@ export function App() {
         <button onClick={() => store.addShow(newShow())}>+ New</button>
         <div className="spacer" />
         <div className="seg" role="tablist" aria-label="Mode">
-          <button role="tab" aria-selected={mode === 'lights'} title="Set up, test and control the DMX lights" className={mode === 'lights' ? 'on' : ''} onClick={() => setMode('lights')}>Lights</button>
           <button role="tab" aria-selected={mode === 'edit'} title="Build the lineup and pick songs" className={mode === 'edit' ? 'on' : ''} onClick={() => setMode('edit')}>Edit</button>
-          <button role="tab" aria-selected={mode === 'live'} title="Run the show: walk-up music and timer" className={mode === 'live' ? 'on' : ''} onClick={() => setMode('live')}>Live</button>
+          <button role="tab" aria-selected={mode === 'live'} title="Run the show: walk-up music (or live band) and the set timer" className={mode === 'live' ? 'on' : ''} onClick={() => setMode('live')}>Live</button>
         </div>
         <div className="spacer" />
         {authed && (
@@ -188,16 +171,14 @@ export function App() {
         </div>
       )}
 
-      {mode === 'lights' ? <LightsScreen engine={lights} />
-        : !show ? <div className="hero"><h1>No shows yet</h1><button className="primary" onClick={() => store.addShow(newShow())}>Create a show</button></div>
+      {!show ? <div className="hero"><h1>No shows yet</h1><button className="primary" onClick={() => store.addShow(newShow())}>Create a show</button></div>
         : mode === 'edit'
           ? <>
             <GettingStarted show={show} configured={isConfigured()} connected={authed} onConnect={() => void login()} />
             <Editor key={show.id} show={show} update={(fn) => store.updateShow(show.id, fn)} canSearch={authed} audition={audition}
               songCheck={songCheck} onCheckSongs={runSongCheck} />
           </>
-          : <Live key={show.id} show={show} unplayable={songCheck.bad} player={player} ready={pstatus === 'ready'} dmx={lights}
-            onOpenLights={() => setMode('lights')}
+          : <Live key={show.id} show={show} unplayable={songCheck.bad} player={player} ready={pstatus === 'ready'}
             resize={(n, keepFrom) => store.updateShow(show.id, (sh) => ({ ...sh, slots: resizeActs(sh.slots, n, keepFrom, slotDefaults(sh)) }))} />}
     </div>
     {show && <RunSheet show={show} />}

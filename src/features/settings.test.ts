@@ -8,7 +8,6 @@ describe('clampFade', () => {
     expect(clampFade(60_000)).toBe(10_000);
     expect(clampFade(NaN)).toBe(DEFAULT_SETTINGS.fadeOutMs);
   });
-  it("warning mode defaults to the light", () => { expect(DEFAULT_SETTINGS.warningMode).toBe("light"); });
   it('the timer counts up by default', () => { expect(DEFAULT_SETTINGS.timerCounts).toBe('up'); });
   it("auto-start timer is on by default", () => {
     expect(DEFAULT_SETTINGS.autoStartTimer).toBe(true);
